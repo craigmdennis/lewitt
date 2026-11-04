@@ -61,22 +61,38 @@ Run its test with `claude plugin test plugins/now-view`.
 | `.claude/agents/` | The sub-agent roles: `copywriter.md`, `researcher.md` and `frontend-engineer.md` |
 | `.claude/skills/` | `copy-rules` for the copywriter, `research-methods` for the researcher |
 | `.claude/hooks/` | `memory-only-writes.py` and `no-remote-writes.py` |
-| `.claude/agent-memory/` | Each sub-agent's memory, `<role>/MEMORY.md`. Ignored by git |
 | `guides/` | Usability, visual design and UX writing principles |
+| `.githooks/` | The pre-commit check against the company denylist |
 | `FIRST-RUN.md` | The setup the designer runs when `machine.env` or a company guide is missing |
-| `templates/company/` | The company guides the first run fills in: the app, the design system, copy sources, research sources and pattern rules |
+| `templates/company/` | The company guides the first run fills in: the app, the design system, copy sources, research sources, pattern rules and skills |
 | `plugins/now-view/` | The Now view |
-| `scripts/` | Prototype build, session and screenshot scripts |
-| `company/`, `runs/`, `worktrees/` | The company guides, one folder per project, and the app worktrees. Ignored by git, because they hold the company's data |
+| `scripts/` | The company link, prototype build, session and screenshot scripts |
+| `company`, `machine.env`, `runs`, `worktrees`, `.claude/agent-memory` | Links into the company folder. Ignored by git |
 
 ## Setup
 
 1. Install the Now view, as above.
-2. Open Claude Code in this repository. The designer finds that `machine.env` and `company/` are missing, and follows `FIRST-RUN.md`: it reads the app repository, proposes each answer, and asks one question at a time. It writes `machine.env` and the company guides in `company/` from `templates/company/`.
-
-To change an answer later, edit its file in `company/` or `machine.env`. To run the setup again, delete the file and start a new session.
+2. Open Claude Code in this repository. The designer finds no company folder and follows `FIRST-RUN.md`. It asks for the company's name and creates a folder for it outside this repository, with `scripts/use-company.sh`. Then it reads the app repository, proposes each answer, and asks one question at a time.
 
 The researcher and the front-end engineer read Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`. Each one is optional, and each one is read only. The first run reports which ones are connected.
+
+## The company folder
+
+The company folder holds everything that belongs to one company, and this repository holds the way of working. These links in this checkout point into the company folder:
+
+| Link | Target |
+|---|---|
+| `company` | The folder: the company guides, `skills.md` and `denylist` |
+| `machine.env` | `machine.env` in the folder |
+| `runs` | One folder per project |
+| `worktrees` | The worktrees of the app repository |
+| `.claude/agent-memory` | Each sub-agent's memory |
+
+To work on another company's product, run `scripts/use-company.sh <folder>` with that company's folder. The links change, and this checkout stays the same. To change an answer from the first run, edit its file in the company folder.
+
+The company folder can be its own private git repository, outside this one. Keep `runs/`, `worktrees/` and `machine.env` out of it, because run folders hold the company's real data.
+
+A change to the way of working, made during a company project, comes to this repository in general terms. `CLAUDE.md` lists which changes go where. The pre-commit check in `.githooks/` blocks a commit that adds a term from `company/denylist`.
 
 ## Starting a project
 

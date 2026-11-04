@@ -1,6 +1,6 @@
 # First run
 
-The designer follows these steps when `machine.env` or any file in `company/` is missing. The steps set up Lewitt for one company's product on one Mac. Each step writes its answer to a file before the next step starts, so a setup that stops partway continues from the first missing answer.
+The designer follows these steps when `company` is not a link, or when `machine.env` or any file in `company/` is missing. The steps set up Lewitt for one company's product on one Mac. Each step writes its answer to a file before the next step starts, so a setup that stops partway continues from the first missing answer.
 
 ## How to ask
 
@@ -9,9 +9,17 @@ The designer follows these steps when `machine.env` or any file in `company/` is
 - Write each confirmed answer into its file at once. Replace each `<placeholder>` in the template with the answer, and delete a line or a section the design lead says does not apply.
 - When the design lead does not know an answer, write `Unknown` in its place and continue. List each unknown at the end.
 
+## 0. The company folder
+
+If `company` is already a link, skip this step.
+
+1. Ask for the company's name, and propose `$HOME/Projects/lewitt-<company>` as its folder. The folder sits outside this repository.
+2. Run `scripts/use-company.sh <folder>`. It creates the folder, links `company`, `machine.env`, `runs`, `worktrees` and `.claude/agent-memory` to it, and turns on the pre-commit check.
+3. Ask whether the folder should be its own private git repository. If the design lead says yes, run `git init` in it, and add `runs/`, `worktrees/` and `machine.env` to its `.gitignore`. Run folders hold the company's real data.
+
 ## 1. This Mac
 
-Copy `machine.env.example` to `machine.env`, then ask for:
+`machine.env` is in the company folder. Ask for:
 
 1. **The app repository.** The path of the front-end checkout. If it is not cloned yet, ask for its URL and offer to clone it. Write it as `APP_REPO`.
 2. **Playwright.** Find the folder in the app repository that holds `@playwright/test` in its `node_modules`. Write it as `PLAYWRIGHT_DIR`. If no folder holds it, say that screenshots need it, and ask whether to install it.
@@ -64,20 +72,25 @@ Write `company/research.md` from `templates/company/research.md`, then ask for:
 4. **A data skill**, if the company has one for its warehouse.
 5. **Other sources,** such as a survey tool, support tickets or a research repository.
 
-## 6. Pattern rules
+## 6. Skills and terms
+
+1. Copy `templates/company/skills.md` to `company/skills.md`. For each company skill from steps 4 and 5, ask which agents load it, and list it under each one. When there are none, keep the file with its headings.
+2. Ask for the company's own terms: the product names, the component library, internal hosts, repository names and code names. Propose the ones you found in steps 1 to 5. Add each one to `company/denylist`, one per line.
+
+## 7. Pattern rules
 
 Copy `templates/company/pattern-rules.md` to `company/pattern-rules.md`. Ask whether the design lead has approved rules from earlier projects. Add each one to the table, one question at a time. Leave the example row out when there are none.
 
-## 7. Connections and skills
+## 8. Connections
 
 1. Run `claude mcp list`. Report each server in the researcher's and the engineer's definitions, `amplitude`, `mobbin`, `linear` and `snowflake`, as connected or missing, with Notion through claude.ai. For each missing server, ask whether to connect it, and give its setup step. Each server is optional.
-2. For each company skill from steps 4 and 5, ask whether to preload it. If the design lead says yes, add it to the `skills` list in `.claude/agents/copywriter.md` or `.claude/agents/researcher.md`. Tell the design lead that this edit is a change to a tracked file, and leave it uncommitted.
-3. Check that the Now view is installed. If it is not, give the two install commands in `README.md`.
+2. Check that the Now view is installed. If it is not, give the two install commands in `README.md`.
 
-## 8. Finish
+## 9. Finish
 
 1. Run the checks:
-   - `git status --short` lists none of `company/`, `machine.env`, `runs/` or `worktrees/`.
+   - `git status --short` lists none of `company`, `machine.env`, `runs`, `worktrees` or `.claude/agent-memory`.
+   - `git config core.hooksPath` prints `.githooks`.
    - `node --check scripts/screenshot.mjs` passes.
    - The `PLAYWRIGHT_DIR` folder resolves `@playwright/test`.
 2. Tell the design lead what was set up, each answer still `Unknown`, and the file to edit for each one.

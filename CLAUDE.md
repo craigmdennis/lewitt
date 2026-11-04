@@ -6,7 +6,21 @@ These guidelines are for the designer. Each sub-agent's own rules are in `.claud
 
 ## First run
 
-At the start of each session, check that `machine.env` and these files exist: `company/app.md`, `company/design-system.md`, `company/copy-sources.md`, `company/research.md` and `company/pattern-rules.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+At the start of each session, check that `company` is a link to a folder, and that these files exist: `machine.env`, `company/app.md`, `company/design-system.md`, `company/copy-sources.md`, `company/research.md`, `company/pattern-rules.md` and `company/skills.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+
+## Where changes go
+
+This repository is public. It holds the way of working, and one company folder outside it holds everything about one company's product. `company`, `machine.env`, `runs`, `worktrees` and `.claude/agent-memory` are links into the company folder, which `scripts/use-company.sh` creates.
+
+| A change to | Goes in |
+|---|---|
+| The roles, the stages, the agents, the skills, the hooks, the Now view, the scripts, the general guides, the templates, `FIRST-RUN.md` and this file | This repository |
+| The company's app, design system, copy sources, research sources, pattern rules and company skills | `company/` |
+| A project's files | `runs/<project>/` |
+
+When a project shows that the way of working needs to change, make the change in this repository in general terms, with no name, path, term or example from the company's product. Then record the company-specific part in `company/`. Commit each change to this repository on its own, with the files of that change only, and ask the design lead before pushing.
+
+The pre-commit check in `.githooks/` blocks a commit that adds a term from `company/denylist`. When the design lead names a new company term, such as a product, a component library or an internal host, add it to the denylist.
 
 ## Roles
 
@@ -118,7 +132,7 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
 
 ## Data and privacy
 
-Run folders, research output, agent memory and `company/` hold the company's data. Git ignores all four, and they stay on this Mac.
+Run folders, research output, agent memory and `company/` hold the company's data. All four are in the company folder, outside this repository.
 
 - Never publish a prototype, a report or an artifact to a public URL.
 - Every source is read only. The researcher reads its sources and writes to none of them.

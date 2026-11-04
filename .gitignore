@@ -1,12 +1,10 @@
-machine.env
 __pycache__/
 .DS_Store
 node_modules/
-# Company guides, agent memory, run folders and worktrees hold the company's data.
-# They stay on this Mac.
-/company/
-.claude/agent-memory/*
-!.claude/agent-memory/README.md
-runs/*
-!runs/.gitkeep
-/worktrees/
+# Links to the company folder, which scripts/use-company.sh creates. The company
+# folder sits outside this repository and holds the company's data.
+/company
+/machine.env
+/runs
+/worktrees
+/.claude/agent-memory
