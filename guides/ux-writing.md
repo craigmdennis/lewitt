@@ -1,6 +1,6 @@
 ## UX writing principles
 
-These principles apply to every piece of interface text you write or review. The sources in `company/copy-sources.md` add the company's rules. Where they conflict with a principle here, the company rule applies.
+These principles apply to every piece of interface text you write or review. The sources in `notes/copy-sources.md` add the company's rules. Where they conflict with a principle here, the company rule applies.
 
 ### Write for the task
 

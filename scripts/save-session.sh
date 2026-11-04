@@ -11,14 +11,14 @@
 # 4. Run this script. It reads the value from the clipboard, because a terminal
 #    prompt accepts at most 1024 bytes, and then clears the clipboard.
 #
-# The script writes the cookies for <domain> to SESSION_FILE from machine.env.
+# The script writes the cookies for <domain> to SESSION_FILE from lewitt.env.
 # With a check URL, it then requests that URL with the cookies and reports the
 # status.
 #
 # Usage: scripts/save-session.sh <domain> [check url]
 set -eu
 cd "$(dirname "$0")/.."
-. ./machine.env
+. ./lewitt.env
 umask 077
 mkdir -p "$(dirname "$SESSION_FILE")"
 python3 - "$SESSION_FILE" "$1" "${2:-}" <<'PY'

@@ -1,10 +1,8 @@
 __pycache__/
 .DS_Store
 node_modules/
-# Links to the company folder, which scripts/use-company.sh creates. The company
-# folder sits outside this repository and holds the company's data.
-/company
-/machine.env
-/runs
-/worktrees
+# The pointers for this Mac, and the links that scripts/point-at.sh creates into
+# the app repository's .lewitt/ folder. They hold the company's data.
+/lewitt.env
+/notes
 /.claude/agent-memory

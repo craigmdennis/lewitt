@@ -6,21 +6,37 @@ These guidelines are for the designer. Each sub-agent's own rules are in `.claud
 
 ## First run
 
-At the start of each session, check that `company` is a link to a folder, and that these files exist: `machine.env`, `company/app.md`, `company/design-system.md`, `company/copy-sources.md`, `company/research.md`, `company/pattern-rules.md` and `company/skills.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+At the start of each session, check that `notes` is a link to a folder, and that these files exist: `lewitt.env`, `notes/app.md`, `notes/design-system.md`, `notes/copy-sources.md`, `notes/research.md`, `notes/pattern-rules.md` and `notes/skills.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
 
-## Where changes go
+## Where things live
 
-This repository is public. It holds the way of working, and one company folder outside it holds everything about one company's product. `company`, `machine.env`, `runs`, `worktrees` and `.claude/agent-memory` are links into the company folder, which `scripts/use-company.sh` creates.
+This repository is public, and it holds only the way of working. Everything about the product stays in the product's own repositories and services, where it already is. Lewitt moves nothing and creates no folder hierarchy of its own.
+
+- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees, the backend repository, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
+- **The notes**, `.lewitt/` in the app repository's main checkout, hold what the app repository does not already say: the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, the denylist and each sub-agent's memory. `notes` and `.claude/agent-memory` in this checkout are links to it, which `scripts/point-at.sh` creates.
+- **The run folder**, `.lewitt-run/` in the project's worktree, holds one project's files: the scope, the states, the decision log, the research, screenshots, snapshots and the standalone prototype. This file writes it as `<run>`.
+- **Code** is a branch in the project's worktree, and the final build is a pull request from it.
+
+The app repository's `.git/info/exclude` lists `.lewitt/` and `.lewitt-run/`, so git ignores both and the repository's own files and `.gitignore` stay unchanged.
+
+### Starting a project's worktree
+
+1. Read `lewitt.env`, and list the existing worktrees with `git -C "$APP_REPO" worktree list`.
+2. Ask the design lead before creating the worktree. Propose a name that follows the existing names in `$WORKTREES_DIR`, and a branch named after the project.
+3. Create the worktree from the default branch, then create `.lewitt-run/` in it.
+4. Give each sub-agent brief the absolute path of the run folder and of the worktree.
+
+### Where changes go
 
 | A change to | Goes in |
 |---|---|
 | The roles, the stages, the agents, the skills, the hooks, the Now view, the scripts, the general guides, the templates, `FIRST-RUN.md` and this file | This repository |
-| The company's app, design system, copy sources, research sources, pattern rules and company skills | `company/` |
-| A project's files | `runs/<project>/` |
+| The app, the design system guidance, the copy and research sources, the pattern rules and the company skills | `notes/` |
+| One project's files | `<run>/` |
 
-When a project shows that the way of working needs to change, make the change in this repository in general terms, with no name, path, term or example from the company's product. Then record the company-specific part in `company/`. Commit each change to this repository on its own, with the files of that change only, and ask the design lead before pushing.
+When a project shows that the way of working needs to change, make the change in this repository in general terms, with no name, path, term or example from the company's product. Then record the company-specific part in `notes/`. Commit each change to this repository on its own, with the files of that change only, and ask the design lead before pushing.
 
-The pre-commit check in `.githooks/` blocks a commit that adds a term from `company/denylist`. When the design lead names a new company term, such as a product, a component library or an internal host, add it to the denylist.
+The pre-commit check in `.githooks/` blocks a commit that adds a term from `notes/denylist`. When the design lead names a new company term, such as a product, a component library or an internal host, add it to the denylist.
 
 ## Roles
 
@@ -59,14 +75,14 @@ A project runs in stages. The design lead approves each stage before the next on
 
 The prototype is the feedback target. It is not production code.
 
-- **Standalone**, for a new feature: each version is `runs/<project>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 scripts/inline-prototype.py runs/<project>/prototype/v<n>`, and link only the built file.
+- **Standalone**, for a new feature: each version is `<run>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 scripts/inline-prototype.py <run>/prototype/v<n>`, and link only the built file.
 - **In code**, for a change to an existing page: each version is a commit on the project's branch, named in the commit message.
 
 Each state opens from the `state` URL parameter, with the state ID from `states.md`. The prototype offers only the combinations of states that `states.md` allows. With no parameter, the page shows the main state.
 
 Build from the design system's components, and write no CSS that restyles one. A state the version does not build yet is a placeholder: the component that will hold it, a dashed border, the label "Placeholder", the state ID and one sentence on what will appear there.
 
-Before sending a version, run the visual check in `company/design-system.md` on each new or changed state.
+Before sending a version, run the visual check in `notes/design-system.md` on each new or changed state.
 
 ## Briefing a sub-agent
 
@@ -90,14 +106,14 @@ The front-end engineer cannot push or write to GitHub. A hook blocks those comma
 
 ## Memory
 
-Each sub-agent has a memory file, `.claude/agent-memory/<role>/MEMORY.md`. The sub-agent reads it at the start of each task and adds each new fact as one line, with the date, the project and the source. A hook blocks every other write.
+Each sub-agent has a memory file, `.claude/agent-memory/<role>/MEMORY.md`, which is in the notes. The sub-agent reads it at the start of each task and adds each new fact as one line, with the date, the project and the source. A hook blocks every other write.
 
 When the design lead corrects a string, add the correction to the next copywriter brief under "Corrections". The copywriter records it in its memory. A correction to the researcher's sources works the same way.
 
 The designer's memory is the run folder and the guides:
 
-- `runs/<project>/decision-log.md` holds each decision, with its date and source. An entry is never edited. A changed decision is a new entry, and the earlier entry is marked as superseded.
-- `company/pattern-rules.md` holds the rules that apply beyond one project. See "Rules" below.
+- `<run>/decision-log.md` holds each decision, with its date and source. An entry is never edited. A changed decision is a new entry, and the earlier entry is marked as superseded.
+- `notes/pattern-rules.md` holds the rules that apply beyond one project. See "Rules" below.
 
 ## Rules
 
@@ -107,9 +123,9 @@ For each change the design lead asks for, find the system behind it and propose 
 2. State an exception, if one exists.
 3. Recommend a level: project note, pattern rule, or org rule.
 4. Name the source: the design lead's words or Figma frame.
-5. Check the rule against the design system's guidance and the copy sources in `company/copy-sources.md`, and name any conflict.
+5. Check the rule against the design system's guidance and the copy sources in `notes/copy-sources.md`, and name any conflict.
 
-The design lead decides the level. Record a project note in the decision log. Add a pattern rule or an org rule to `company/pattern-rules.md`. Add a copy rule to the copywriter's memory, through its next brief.
+The design lead decides the level. Record a project note in the decision log. Add a pattern rule or an org rule to `notes/pattern-rules.md`. Add a copy rule to the copywriter's memory, through its next brief.
 
 ## Guides
 
@@ -119,12 +135,12 @@ Read each guide once in a session, when the work needs it:
 |---|---|
 | `guides/usability.md` | Before planning options or building version 1 |
 | `guides/visual-design.md` | Before building or reviewing a version |
-| `company/design-system.md` | Before building or reviewing a version, and before any Figma render |
+| `notes/design-system.md` | Before building or reviewing a version, and before any Figma render |
 | `guides/ux-writing.md` | Before reviewing copy the copywriter returned |
-| `company/pattern-rules.md` | Before building a version, and when proposing a rule |
-| `company/app.md` | Before running the app, taking a screenshot or a page snapshot |
+| `notes/pattern-rules.md` | Before building a version, and when proposing a rule |
+| `notes/app.md` | Before running the app, taking a screenshot or a page snapshot |
 
-`company/` holds the guides for one company's product. Setup in `README.md` creates it from `templates/company/`.
+`notes/` holds the guides for one product. The first run writes them from `templates/notes/`.
 
 ## The Now view
 
@@ -132,7 +148,7 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
 
 ## Data and privacy
 
-Run folders, research output, agent memory and `company/` hold the company's data. All four are in the company folder, outside this repository.
+Run folders, research output, agent memory and `notes/` hold the company's data. All four sit in the app repository's checkouts, outside this repository, and its `.git/info/exclude` keeps them out of its commits.
 
 - Never publish a prototype, a report or an artifact to a public URL.
 - Every source is read only. The researcher reads its sources and writes to none of them.
@@ -140,6 +156,6 @@ Run folders, research output, agent memory and `company/` hold the company's dat
 ## Conventions
 
 - No emoji.
-- Durable documents go in `docs/`. Each project's files go in `runs/<project>/`.
+- Durable documents about Lewitt go in `docs/`. Each project's files go in `<run>/`.
 - Use built-in events and notifications. Never poll or set a timer to wait for work.
 - Ask before creating a git worktree.

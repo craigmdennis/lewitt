@@ -1,8 +1,8 @@
 #!/bin/sh
-# Block a commit that adds a term from the company denylist, so company content
-# stays out of this public repository. The terms are in company/denylist, one per
+# Block a commit that adds a term from the app's denylist, so company content
+# stays out of this public repository. The terms are in notes/denylist, one per
 # line, matched without case. Lines that start with # are comments.
-list=company/denylist
+list=notes/denylist
 [ -f "$list" ] || exit 0
 terms=$(grep -v '^[[:space:]]*#' "$list" | grep -v '^[[:space:]]*$' || true)
 [ -n "$terms" ] || exit 0
@@ -11,6 +11,6 @@ hits=$(printf '%s\n' "$added" | grep -n -i -F "$(printf '%s\n' "$terms")" || tru
 if [ -n "$hits" ]; then
   echo "This commit adds company terms from $list:" >&2
   printf '%s\n' "$hits" | cut -c1-200 >&2
-  echo "Move the company content into company/, or reword it, then commit again." >&2
+  echo "Move the company content into notes/, or reword it, then commit again." >&2
   exit 1
 fi

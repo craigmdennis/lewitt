@@ -62,38 +62,38 @@ Run its test with `claude plugin test plugins/now-view`.
 | `.claude/skills/` | `copy-rules` for the copywriter, `research-methods` for the researcher |
 | `.claude/hooks/` | `memory-only-writes.py` and `no-remote-writes.py` |
 | `guides/` | Usability, visual design and UX writing principles |
-| `.githooks/` | The pre-commit check against the company denylist |
-| `FIRST-RUN.md` | The setup the designer runs when `machine.env` or a company guide is missing |
-| `templates/company/` | The company guides the first run fills in: the app, the design system, copy sources, research sources, pattern rules and skills |
+| `.githooks/` | The pre-commit check against the product's denylist |
+| `FIRST-RUN.md` | The setup the designer runs when `lewitt.env` or a guide in `notes/` is missing |
+| `templates/notes/` | The guides the first run fills in: the app, the design system, copy sources, research sources, pattern rules and skills |
 | `plugins/now-view/` | The Now view |
-| `scripts/` | The company link, prototype build, session and screenshot scripts |
-| `company`, `machine.env`, `runs`, `worktrees`, `.claude/agent-memory` | Links into the company folder. Ignored by git |
+| `scripts/` | `point-at.sh`, and the prototype build, session and screenshot scripts |
+| `lewitt.env` | The pointers for this Mac. Ignored by git |
+| `notes`, `.claude/agent-memory` | Links to `.lewitt/` in the app repository. Ignored by git |
 
 ## Setup
 
 1. Install the Now view, as above.
-2. Open Claude Code in this repository. The designer finds no company folder and follows `FIRST-RUN.md`. It asks for the company's name and creates a folder for it outside this repository, with `scripts/use-company.sh`. Then it reads the app repository, proposes each answer, and asks one question at a time.
+2. Open Claude Code in this repository. The designer finds no `notes` link and follows `FIRST-RUN.md`. It asks for the app repository, as an existing checkout or a git URL to clone, and runs `scripts/point-at.sh`. Then it reads the app repository, proposes each answer, and asks one question at a time.
 
 The researcher and the front-end engineer read Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`. Each one is optional, and each one is read only. The first run reports which ones are connected.
 
-## The company folder
+## Where things live
 
-The company folder holds everything that belongs to one company, and this repository holds the way of working. These links in this checkout point into the company folder:
+Lewitt works with the product's repositories where they already are, and creates no folder hierarchy of its own. This repository holds only the way of working.
 
-| Link | Target |
+| What | Where |
 |---|---|
-| `company` | The folder: the company guides, `skills.md` and `denylist` |
-| `machine.env` | `machine.env` in the folder |
-| `runs` | One folder per project |
-| `worktrees` | The worktrees of the app repository |
-| `.claude/agent-memory` | Each sub-agent's memory |
+| The pointers for this Mac: the app repository, its worktrees folder, the backend repository, Playwright and the session file | `lewitt.env` in this checkout |
+| The notes about the product: the app, the design system guidance, copy and research sources, pattern rules, company skills, the denylist and agent memory | `.lewitt/` in the app repository's main checkout, linked here as `notes` and `.claude/agent-memory` |
+| One project's files: scope, states, decision log, research, screenshots and the standalone prototype | `.lewitt-run/` in the project's worktree of the app repository |
+| Code | A branch in the project's worktree, shipped as a pull request |
 
-To work on another company's product, run `scripts/use-company.sh <folder>` with that company's folder. The links change, and this checkout stays the same. To change an answer from the first run, edit its file in the company folder.
+`scripts/point-at.sh` adds `.lewitt/` and `.lewitt-run/` to the app repository's `.git/info/exclude`. Git ignores both folders, and the repository's tracked files and its `.gitignore` stay unchanged.
 
-The company folder can be its own private git repository, outside this one. Keep `runs/`, `worktrees/` and `machine.env` out of it, because run folders hold the company's real data.
+To work on another product, run `scripts/point-at.sh` with that product's repository. The two links and `APP_REPO` change, and each product keeps its own notes and agent memory. To change an answer from the first run, edit its file in `notes/`.
 
-A change to the way of working, made during a company project, comes to this repository in general terms. `CLAUDE.md` lists which changes go where. The pre-commit check in `.githooks/` blocks a commit that adds a term from `company/denylist`.
+A change to the way of working, made during a product project, comes to this repository in general terms. `CLAUDE.md` lists which changes go where. The pre-commit check in `.githooks/` blocks a commit that adds a term from `notes/denylist`.
 
 ## Starting a project
 
-Open Claude Code in this repository and describe the project. The designer writes `runs/<project>/project.md` and asks the design lead to approve the scope before anything else.
+Open Claude Code in this repository and describe the project. The designer asks before creating the project's worktree of the app repository, then writes `project.md` in its `.lewitt-run/` folder and asks the design lead to approve the scope before anything else.

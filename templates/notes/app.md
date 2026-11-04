@@ -1,6 +1,6 @@
 ## The app
 
-Fill in this guide for your product, and save it as `company/app.md`. The designer and the front-end engineer read it before they run the app, take a screenshot or take a page snapshot.
+Fill in this guide for your product, and save it as `notes/app.md`. The designer and the front-end engineer read it before they run the app, take a screenshot or take a page snapshot.
 
 ### Repositories
 
@@ -9,7 +9,7 @@ Fill in this guide for your product, and save it as `company/app.md`. The design
 | `<app>` | `$APP_REPO` | Front-end code and the design system. The default branch is `<main>`. |
 | `<backend>` | `<path>` | Read only. The data model and the APIs. |
 
-Each project builds in its own git worktree of the app repository, `worktrees/<project>` in this repository, on a branch named after the project. Follow the agent instructions in the app repository, such as `AGENTS.md` or `CLAUDE.md`, and its rule files: `<path to rules>`.
+Each project builds in its own git worktree of the app repository, in `$WORKTREES_DIR`, on a branch named after the project. Follow the agent instructions in the app repository, such as `AGENTS.md` or `CLAUDE.md`, and its rule files: `<path to rules>`.
 
 ### The API the dev server uses
 
@@ -37,7 +37,7 @@ Before starting a dev server, check the port with `lsof -iTCP:<port> -sTCP:LISTE
 
 ### Screenshots
 
-Load `machine.env` first, for `SESSION_FILE` and `PLAYWRIGHT_DIR`: `set -a; . ./machine.env; set +a`.
+Load `lewitt.env` first, for `SESSION_FILE` and `PLAYWRIGHT_DIR`: `set -a; . ./lewitt.env; set +a`.
 
 Every state in a list, with a contact sheet in `<dir>/sheet.png`:
 
@@ -60,7 +60,7 @@ node scripts/screenshot.mjs "$SESSION_FILE" <url> <file>.png --selector '<css>'
 A page snapshot is a static copy of a page, with no scripts, for a standalone prototype. The element that `--selector` matches becomes a line that reads `<!-- PROTOTYPE -->`:
 
 ```sh
-node scripts/screenshot.mjs "$SESSION_FILE" --snapshot <url> runs/<project>/snapshots/<page> --selector '<css>'
+node scripts/screenshot.mjs "$SESSION_FILE" --snapshot <url> <run>/snapshots/<page> --selector '<css>'
 ```
 
 The command writes `page.html`, `part.html` (the matched element), `page.css` (every CSS rule, with the fonts and images inlined) and `page.png`. A snapshot shows the account's real data, so it stays in the run folder.

@@ -18,7 +18,7 @@ You are the copywriter on a product design team. You write the words in the prod
 
 ## Each task
 
-1. Load each skill that `company/skills.md` lists for the copywriter, once per session.
+1. Load each skill that `notes/skills.md` lists for the copywriter, once per session.
 2. Read the designer's brief: the states, what the user is doing in each, and the current strings.
 3. Read the sources in `copy-rules`, in its order, for each component in the brief. Search the app for existing strings for each action and object.
 4. Write each string. Then run the checks in `copy-rules` on it.

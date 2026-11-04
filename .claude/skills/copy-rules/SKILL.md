@@ -5,16 +5,16 @@ description: Where the product's copy rules and approved strings are, the order 
 
 # Copy rules
 
-`company/copy-sources.md` in this repository names the company's copy sources: its copy skill or style guide, the design system's language guidance, and the folders that hold existing strings. This skill sets the order to check them in. When two sources disagree, the earlier source in this list applies, and the reply names the conflict.
+`notes/copy-sources.md` names the company's copy sources: its copy skill or style guide, the design system's language guidance, and the folders that hold existing strings. This skill sets the order to check them in. When two sources disagree, the earlier source in this list applies, and the reply names the conflict.
 
 ## Sources, in order
 
 1. **The design lead's decisions for the project.** The decision log in the run folder (`decision-log.md`) and the state file (`states.md`). A string that the design lead wrote or approved stays as written.
-2. **The design system's language guidance**, as `company/copy-sources.md` lists it. Read the page of each component that shows the string.
-3. **Pattern rules the design lead approved,** in `company/pattern-rules.md`.
-4. **The company's copy skill or style guide,** when `company/copy-sources.md` names one.
+2. **The design system's language guidance**, as `notes/copy-sources.md` lists it. Read the page of each component that shows the string.
+3. **Pattern rules the design lead approved,** in `notes/pattern-rules.md`.
+4. **The company's copy skill or style guide,** when `notes/copy-sources.md` names one.
 5. **`guides/ux-writing.md`** in this repository, including its self-edit.
-6. **Existing strings in the app.** Before writing a new string for an action, a state or an object, search the app repository for the same action, state or object, in the folders `company/copy-sources.md` names. Reuse an existing string when the action is the same, and name the file and line.
+6. **Existing strings in the app.** Before writing a new string for an action, a state or an object, search the app repository for the same action, state or object, in the folders `notes/copy-sources.md` names. Reuse an existing string when the action is the same, and name the file and line.
 
 ## Checks on each string
 

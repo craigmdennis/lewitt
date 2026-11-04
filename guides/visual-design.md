@@ -1,6 +1,6 @@
 ## Visual design principles
 
-These principles apply to every screen you design, build, or review. When a rule in `company/design-system.md` conflicts with a principle here, the company rule applies.
+These principles apply to every screen you design, build, or review. When a rule in `notes/design-system.md` conflicts with a principle here, the company rule applies.
 
 ### Gestalt principles
 
@@ -31,7 +31,7 @@ The eye groups elements before it reads them. Each grouping on the screen must m
 
 ### Spacing
 
-1. Use only the values on the spacing scale. `company/design-system.md` lists them.
+1. Use only the values on the spacing scale. `notes/design-system.md` lists them.
 2. Space shows relationships. The space inside a component is smaller than the space between components, and that space is smaller than the space between sections.
 3. One relationship uses one space throughout the view: every label to its field, every card to the next card.
 4. Leave space empty where the grouping needs it. Add no element to fill space.
