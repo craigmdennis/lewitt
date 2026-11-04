@@ -63,20 +63,20 @@ Run its test with `claude plugin test plugins/now-view`.
 | `.claude/hooks/` | `memory-only-writes.py` and `no-remote-writes.py` |
 | `.claude/agent-memory/` | Each sub-agent's memory, `<role>/MEMORY.md`. Ignored by git |
 | `guides/` | Usability, visual design and UX writing principles |
-| `templates/company/` | The company guides to fill in: the app, the design system, copy sources and pattern rules |
+| `FIRST-RUN.md` | The setup the designer runs when `machine.env` or a company guide is missing |
+| `templates/company/` | The company guides the first run fills in: the app, the design system, copy sources, research sources and pattern rules |
 | `plugins/now-view/` | The Now view |
 | `scripts/` | Prototype build, session and screenshot scripts |
 | `company/`, `runs/`, `worktrees/` | The company guides, one folder per project, and the app worktrees. Ignored by git, because they hold the company's data |
 
 ## Setup
 
-1. Clone the product's front-end repository, and any backend repository the engineer reads.
-2. Copy `machine.env.example` to `machine.env`, and set the paths for this Mac.
-3. Copy `templates/company/` to `company/`, and fill in each guide. The copywriter, the researcher and the front-end engineer read them. Add `company/research.md` with the company's units, metric definitions and data caveats.
-4. To give an agent a company skill, such as a copy style guide, add the skill to the `skills` list in the agent's definition.
-5. Install the Now view, as above.
-6. Connect the MCP servers the researcher and the front-end engineer read: Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`. Each one is optional, and each one is read only. A server that is not connected is reported as missing in the researcher's reply.
-7. For screenshots of the app, install Playwright in the app repository, and run `scripts/save-session.sh <domain>` to save a session.
+1. Install the Now view, as above.
+2. Open Claude Code in this repository. The designer finds that `machine.env` and `company/` are missing, and follows `FIRST-RUN.md`: it reads the app repository, proposes each answer, and asks one question at a time. It writes `machine.env` and the company guides in `company/` from `templates/company/`.
+
+To change an answer later, edit its file in `company/` or `machine.env`. To run the setup again, delete the file and start a new session.
+
+The researcher and the front-end engineer read Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`. Each one is optional, and each one is read only. The first run reports which ones are connected.
 
 ## Starting a project
 

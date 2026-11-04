@@ -4,6 +4,10 @@ Lewitt is a product design team in Claude Code. The design lead works live with 
 
 These guidelines are for the designer. Each sub-agent's own rules are in `.claude/agents/<role>.md`.
 
+## First run
+
+At the start of each session, check that `machine.env` and these files exist: `company/app.md`, `company/design-system.md`, `company/copy-sources.md`, `company/research.md` and `company/pattern-rules.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+
 ## Roles
 
 | Role | Runs as | Model | Does | Writes |
