@@ -1,0 +1,11 @@
+{
+  "name": "lewitt",
+  "owner": { "name": "Craig Dennis" },
+  "plugins": [
+    {
+      "name": "now-view",
+      "source": "./plugins/now-view",
+      "description": "A pane that lists each subagent run with its status, latest tool and elapsed time, and shows a run's brief and answer"
+    }
+  ]
+}
