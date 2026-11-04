@@ -1,8 +1,10 @@
 __pycache__/
 .DS_Store
 node_modules/
-# The pointers for this Mac, and the links that scripts/point-at.sh creates into
-# the app repository's .lewitt/ folder. They hold the company's data.
+# The pointers for this Mac, the app repository's worktrees, and the links that
+# scripts/point-at.sh creates into the app repository's .lewitt/ folder. They
+# hold the company's data.
 /lewitt.env
+/worktrees
 /notes
 /.claude/agent-memory

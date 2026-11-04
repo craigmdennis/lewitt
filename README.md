@@ -68,6 +68,7 @@ Run its test with `claude plugin test plugins/now-view`.
 | `plugins/now-view/` | The Now view |
 | `scripts/` | `point-at.sh`, and the prototype build, session and screenshot scripts |
 | `lewitt.env` | The pointers for this Mac. Ignored by git |
+| `worktrees/` | The app repository's worktrees, by default. Ignored by git |
 | `notes`, `.claude/agent-memory` | Links to `.lewitt/` in the app repository. Ignored by git |
 
 ## Setup
@@ -84,6 +85,7 @@ Lewitt works with the product's repositories where they already are, and creates
 | What | Where |
 |---|---|
 | The pointers for this Mac: the app repository, its worktrees folder, the backend repository, Playwright and the session file | `lewitt.env` in this checkout |
+| The app repository's worktrees, one per project | `worktrees/` in this checkout by default, or a folder the repository already uses, set as `WORKTREES_DIR` |
 | The notes about the product: the app, the design system guidance, copy and research sources, pattern rules, company skills, the denylist and agent memory | `.lewitt/` in the app repository's main checkout, linked here as `notes` and `.claude/agent-memory` |
 | One project's files: scope, states, decision log, research, screenshots and the standalone prototype | `.lewitt-run/` in the project's worktree of the app repository |
 | Code | A branch in the project's worktree, shipped as a pull request |

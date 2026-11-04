@@ -12,7 +12,7 @@ At the start of each session, check that `notes` is a link to a folder, and that
 
 This repository is public, and it holds only the way of working. Everything about the product stays in the product's own repositories and services, where it already is. Lewitt moves nothing and creates no folder hierarchy of its own.
 
-- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees, the backend repository, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
+- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees (`worktrees/` in this checkout by default, which git ignores), the backend repository, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
 - **The notes**, `.lewitt/` in the app repository's main checkout, hold what the app repository does not already say: the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, the denylist and each sub-agent's memory. `notes` and `.claude/agent-memory` in this checkout are links to it, which `scripts/point-at.sh` creates.
 - **The run folder**, `.lewitt-run/` in the project's worktree, holds one project's files: the scope, the states, the decision log, the research, screenshots, snapshots and the standalone prototype. This file writes it as `<run>`.
 - **Code** is a branch in the project's worktree, and the final build is a pull request from it.
@@ -22,7 +22,7 @@ The app repository's `.git/info/exclude` lists `.lewitt/` and `.lewitt-run/`, so
 ### Starting a project's worktree
 
 1. Read `lewitt.env`, and list the existing worktrees with `git -C "$APP_REPO" worktree list`.
-2. Ask the design lead before creating the worktree. Propose a name that follows the existing names in `$WORKTREES_DIR`, and a branch named after the project.
+2. Ask the design lead before creating the worktree in `$WORKTREES_DIR`. Propose a name that follows the existing names there, and a branch named after the project.
 3. Create the worktree from the default branch, then create `.lewitt-run/` in it.
 4. Give each sub-agent brief the absolute path of the run folder and of the worktree.
 

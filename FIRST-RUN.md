@@ -16,13 +16,13 @@ If `notes` is already a link, skip this step.
 
 1. Ask for the app repository: the path of an existing checkout, or its git URL. Look for a likely checkout first, in the folder that holds this checkout and in its neighbours, and propose it.
 2. For a URL, ask for the folder to clone it into. Propose the folder where the design lead's other repositories already are.
-3. Run `scripts/point-at.sh <path>`, or `scripts/point-at.sh <URL> <folder>`. It creates `.lewitt/` in the app repository, hides `.lewitt/` and `.lewitt-run/` through the repository's `.git/info/exclude`, writes `APP_REPO` in `lewitt.env`, links `notes` and `.claude/agent-memory`, and turns on the pre-commit check.
+3. Run `scripts/point-at.sh <path>`, or `scripts/point-at.sh <URL> <folder>`. It creates `.lewitt/` in the app repository, creates `worktrees/` in this checkout, hides `.lewitt/` and `.lewitt-run/` through the repository's `.git/info/exclude`, writes `APP_REPO` in `lewitt.env`, links `notes` and `.claude/agent-memory`, and turns on the pre-commit check.
 
 ## 1. This Mac
 
 Ask for each pointer in `lewitt.env`:
 
-1. **Worktrees.** Run `git -C "$APP_REPO" worktree list`. When the repository already keeps its worktrees in one folder, propose that folder. Otherwise propose a folder next to the app repository. Write it as `WORKTREES_DIR`.
+1. **Worktrees.** `point-at.sh` sets `WORKTREES_DIR` to `worktrees/` in this checkout, which git ignores. Run `git -C "$APP_REPO" worktree list`. When the repository already keeps its worktrees in another folder, offer that folder as the other choice. Keep the default unless the design lead picks the other folder.
 2. **The backend repository**, if the engineer should read one: an existing path, or a URL to clone into the folder the design lead names. Write it as `BACKEND_REPO`.
 3. **Playwright.** Find the folder in the app repository that holds `@playwright/test` in its `node_modules`. Write it as `PLAYWRIGHT_DIR`. If no folder holds it, say that screenshots need it, and ask whether to install it.
 4. **The session file.** Propose `$HOME/.lewitt/session.json`. Write it as `SESSION_FILE`.
@@ -90,7 +90,7 @@ Copy `templates/notes/pattern-rules.md` to `notes/pattern-rules.md`. Ask whether
 ## 9. Finish
 
 1. Run the checks:
-   - `git status --short` in this checkout lists none of `notes`, `lewitt.env` or `.claude/agent-memory`.
+   - `git status --short` in this checkout lists none of `notes`, `lewitt.env`, `worktrees` or `.claude/agent-memory`.
    - `git -C "$APP_REPO" status --short` lists neither `.lewitt/` nor any change the setup made.
    - `git config core.hooksPath` prints `.githooks`.
    - `node --check scripts/screenshot.mjs` passes.

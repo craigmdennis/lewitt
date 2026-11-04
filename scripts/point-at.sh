@@ -10,6 +10,8 @@
 #    the repository's .git/info/exclude. The repository's own files and its
 #    .gitignore are unchanged.
 # 3. Writes APP_REPO in lewitt.env, from lewitt.env.example when it is missing.
+#    When WORKTREES_DIR is empty, writes worktrees/ in this checkout, which git
+#    ignores, and creates the folder.
 # 4. Replaces two links in this checkout, which git ignores:
 #      notes                -> <app repository>/.lewitt
 #      .claude/agent-memory -> <app repository>/.lewitt/agent-memory
@@ -39,13 +41,24 @@ for pattern in /.lewitt/ /.lewitt-run/; do
 done
 [ -e lewitt.env ] || cp lewitt.env.example lewitt.env
 case "$repo" in "$HOME"/*) value="\$HOME${repo#"$HOME"}" ;; *) value="$repo" ;; esac
-python3 - "$value" <<'PY'
+here="$(pwd)"
+case "$here" in "$HOME"/*) worktrees="\$HOME${here#"$HOME"}/worktrees" ;; *) worktrees="$here/worktrees" ;; esac
+python3 - "$value" "$worktrees" <<'PY'
 import re, sys
 text = open("lewitt.env").read()
-line = f'APP_REPO="{sys.argv[1]}"'
-text = re.sub(r"^APP_REPO=.*$", line, text, flags=re.M) if re.search(r"^APP_REPO=", text, re.M) else text + line + "\n"
+def put(name, value, only_if_empty=False):
+    global text
+    line = f'{name}="{value}"'
+    match = re.search(rf"^{name}=(.*)$", text, re.M)
+    if not match:
+        text += line + "\n"
+    elif not only_if_empty or match.group(1).strip('"') == "":
+        text = text[:match.start()] + line + text[match.end():]
+put("APP_REPO", sys.argv[1])
+put("WORKTREES_DIR", sys.argv[2], only_if_empty=True)
 open("lewitt.env", "w").write(text)
 PY
+mkdir -p "$(sh -c 'set -a; . ./lewitt.env; printf %s "$WORKTREES_DIR"')"
 for pair in "notes:$repo/.lewitt" ".claude/agent-memory:$repo/.lewitt/agent-memory"; do
   link="${pair%%:*}"
   target="${pair#*:}"
