@@ -93,7 +93,7 @@ function firstLine(text: string): string {
 }
 
 const STATUS: Record<RunStatus, string> = {
-  running: 'RUNNING',
+  running: 'IN PROGRESS',
   done: 'FINISHED',
   stopped: 'STOPPED',
   failed: 'FAILED',
@@ -357,7 +357,10 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button, Markdown } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Button, Markdown } = elements
+    // The animated working mark, where the surface draws a Client.
+    const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, runs)
     const openId = await read($, selected)
     const open = list.find(one => one.id === openId)
@@ -425,7 +428,7 @@ export const register: Register = on => {
           <Text bold>{role(open.type)}</Text>
           <Text wrap="wrap">{open.description}</Text>
         </Box>,
-        field('STATUS', open.status === 'running' ? 'RUNNING' : outcome(open)),
+        field('STATUS', open.status === 'running' ? 'IN PROGRESS' : outcome(open)),
         field('STARTED', started(open)),
         field('TOOLS', toolCalls(open.toolCount)),
         open.lastTool && field('LATEST', open.lastTool),
@@ -513,7 +516,15 @@ export const register: Register = on => {
                 {role(run.type)}
               </Text>
             </Button>
-            <Text inverse> RUNNING </Text>
+            {Client ? (
+              <Client
+                key={`working-${run.id}`}
+                module="./working.tsx"
+                props={{ since: run.seenLate ? null : run.startedAt }}
+              />
+            ) : (
+              <Text bold>IN PROGRESS</Text>
+            )}
           </Box>
           <Text wrap="wrap">{run.description}</Text>
           <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
