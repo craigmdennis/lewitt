@@ -7,11 +7,12 @@
 #
 # Claude Code loads the plugin from the folder that installed_plugins.json names
 # for each install, user or project scope. `local` copies this checkout's plugin
-# folder into each one and writes .local.json beside plugin.json, with the commit
-# it copied. The pane's footer reads that file and shows LOCAL with the commit.
+# folder into each one, and sets LOCAL in the copy's hooks/build.ts to the commit
+# it copied. The pane's footer shows the version, and LOCAL with that commit.
 # `live` updates the lewitt marketplace clone, runs `claude plugin update`, and
-# copies the marketplace's plugin folder into each install, which removes
-# .local.json. The copy takes effect in a session at its next /reload-plugins.
+# copies the marketplace's plugin folder into each install, which puts back the
+# pushed hooks/build.ts. A copy takes effect in a session at its next
+# /reload-plugins.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -35,10 +36,15 @@ version_of() {
     "$1/.claude-plugin/plugin.json"
 }
 
+# The commit a local copy came from, or nothing for a pushed copy.
+local_of() {
+  sed -n "s/^export const LOCAL[^=]*= '\\([^']*\\)'.*/\\1/p" "$1/hooks/build.ts"
+}
+
 # Copies a plugin folder into an install, keeping the engine's own files.
 copy_into() {
   rsync -a --delete \
-    --exclude '.in_use' --exclude '.local.json' --exclude '.claude-plugin/types' \
+    --exclude '.in_use' --exclude '.claude-plugin/types' \
     "$1/" "$2/"
 }
 
@@ -56,11 +62,10 @@ case "${1:-status}" in
     if [ -n "$(git -C "$ROOT" status --porcelain -- plugins/now-view)" ]; then
       commit="$commit+changes"
     fi
-    copied="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     installs | while IFS=$'\t' read -r scope path; do
       copy_into "$SRC" "$path"
-      printf '{ "source": "local", "commit": "%s", "checkout": "%s", "copiedAt": "%s" }\n' \
-        "$commit" "$ROOT" "$copied" > "$path/.local.json"
+      sed -i '' "s/^export const LOCAL.*/export const LOCAL: string | undefined = '$commit'/" \
+        "$path/hooks/build.ts"
       echo "$scope: local $(version_of "$path") at $commit, in $path"
     done
     echo "Type /reload-plugins in each session that should use it."
@@ -75,19 +80,18 @@ case "${1:-status}" in
       "$PLUGINS/known_marketplaces.json")/plugins/now-view"
     installs | while IFS=$'\t' read -r scope path; do
       copy_into "$market" "$path"
-      rm -f "$path/.local.json"
-      echo "$scope: live $(version_of "$path"), in $path"
+      echo "$scope: pushed $(version_of "$path"), in $path"
     done
     echo "Type /reload-plugins in each session that should use it."
     ;;
   status)
     require_installs
     installs | while IFS=$'\t' read -r scope path; do
-      if [ -f "$path/.local.json" ]; then
-        commit="$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["commit"])' "$path/.local.json")"
+      commit="$(local_of "$path")"
+      if [ -n "$commit" ]; then
         echo "$scope: local $(version_of "$path") at $commit, in $path"
       else
-        echo "$scope: live $(version_of "$path"), in $path"
+        echo "$scope: pushed $(version_of "$path"), in $path"
       fi
     done
     echo "Checkout: $(version_of "$SRC") at $(git -C "$ROOT" rev-parse --short HEAD)"

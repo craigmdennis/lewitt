@@ -10,11 +10,15 @@ export type Run = {
   // The tool calls before the latest one, oldest first, at most a few.
   recent?: string[]
   toolCount: number
-  // For a run the plugin found already working, when the plugin first saw it.
+  // For a run the plugin found already working or finished, when the plugin
+  // first saw it.
   startedAt: number
   // True when the run started before the plugin loaded, as at /reload-plugins.
   seenLate?: boolean
   endedAt?: number
+  // How long the run took, from the main transcript, for a run that finished
+  // before the plugin loaded.
+  durationMs?: number
   answer?: string
 }
 

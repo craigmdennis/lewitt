@@ -1,4 +1,14 @@
 #!/bin/sh
+# Block a commit where the Now view's version in plugin.json and in
+# hooks/build.ts differ. Claude Code reads the first, and the pane's footer
+# shows the second.
+manifest=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' plugins/now-view/.claude-plugin/plugin.json)
+built=$(sed -n "s/^export const VERSION = '\([^']*\)'.*/\1/p" plugins/now-view/hooks/build.ts)
+if [ "$manifest" != "$built" ]; then
+  echo "The Now view's version is $manifest in plugin.json and $built in hooks/build.ts. Set both to the same version." >&2
+  exit 1
+fi
+
 # Block a commit that adds a term from the app's denylist, so company content
 # stays out of this public repository. The terms are in notes/denylist, one per
 # line, matched without case. Lines that start with # are comments.

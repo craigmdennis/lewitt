@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { VERSION } from '../hooks/build'
+
 const PANE = {
   plugin: 'now-view',
   component: 'Pane',
@@ -18,6 +20,7 @@ test('the empty pane says what will appear', async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
   on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -31,21 +34,59 @@ test('the empty pane says what will appear', async ($, on) => {
   await ui.unmount()
 })
 
-test('the footer shows the version, and LOCAL with the commit for a local copy', async ($, on) => {
+test('the footer shows the version', async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
   on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
-  on('fs.read', (_, e) =>
-    e.path.endsWith('/.claude-plugin/plugin.json')
-      ? { value: '{ "name": "now-view", "version": "9.9.9" }' }
-      : { value: '{ "source": "local", "commit": "abc1234" }' },
-  )
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^NOW VIEW/ }))?.text).toBe('NOW VIEW 9.9.9')
-  expect((await ui.find({ type: 'Text', text: /LOCAL/ }))?.text).toBe(' LOCAL abc1234 ')
+  expect((await ui.find({ type: 'Text', text: /^NOW VIEW/ }))?.text).toBe(`NOW VIEW ${VERSION}`)
+  await ui.unmount()
+})
+
+test('runs that finished before the plugin loaded show from the main transcript', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', (_, e) =>
+    e.agentId === undefined
+      ? {
+          value: [
+            {
+              role: 'assistant',
+              text: '',
+              toolUses: [
+                {
+                  tool_use_id: 'u1',
+                  tool: 'Agent',
+                  agentId: 'r1',
+                  durationMs: 240000,
+                  input: { description: 'Credit research', prompt: 'Find the evidence.', subagent_type: 'researcher' },
+                },
+              ],
+            },
+          ],
+        }
+      : {
+          value: [
+            { role: 'user', text: 'Find the evidence.', toolUses: [] },
+            { role: 'assistant', text: 'Most accounts use no credits.\nMore detail.', toolUses: [] },
+          ],
+        },
+  )
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 4 MIN')
+  expect((await ui.find({ type: 'Text', text: /Most accounts/ }))?.text).toContain('Most accounts use no credits.')
+  expect((await ui.find({ type: 'Text', text: /^RESEARCHER finished/ }))?.text).toBe(
+    'RESEARCHER finished: Credit research',
+  )
   await ui.unmount()
 })
 
@@ -55,6 +96,7 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
   on('tool.call', () => ({ result: {} }))
   on('turn.complete', () => ({ text: '' }))
@@ -74,7 +116,7 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
     expect((await ui.find({ type: 'Text', text: /^Read: / }))?.text).toBe('Read: /repo/Toast.mdx')
     expect((await ui.find({ type: 'Text', text: /^Bash: / }))?.text).toBe('Bash: rg toast')
-    expect((await ui.find({ type: 'Text', text: /CALLS$/ }))?.text).toBe('2 CALLS')
+    expect((await ui.find({ type: 'Text', text: /^2 CALLS$/ }))?.text).toBe('2 CALLS')
     await ui.unmount()
   }
 

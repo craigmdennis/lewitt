@@ -15,7 +15,7 @@ description: Switch the installed Now view between this checkout (local) and the
 
 1. Run the command, and report each line it prints.
 2. For `local` and `live`, ask the design lead to type `/reload-plugins` in each session that should use the copy. A slash command opens its own prompt, so it goes in a message of its own.
-3. The pane's footer shows the version. A local copy also shows LOCAL with the commit it was copied from, and `+changes` when the checkout had uncommitted changes to `plugins/now-view/`.
+3. The pane's footer shows the version. A local copy also shows LOCAL with the commit it was copied from, and `+changes` when the checkout had uncommitted changes to `plugins/now-view/`. The script writes that commit into the copy's `hooks/build.ts`.
 
 `local` copies files only. It does not commit, push or change the version number. `live` fetches the lewitt marketplace from GitHub, runs `claude plugin update`, and copies the marketplace's version over a local copy that has the same version number.
 
