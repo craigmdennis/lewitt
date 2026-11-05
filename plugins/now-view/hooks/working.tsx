@@ -1,8 +1,8 @@
 import type { ClientModule } from 'claude-code'
 
-// The working mark of a task in progress, drawn by the surface on its own
-// frame clock: a turning glyph, as on Claude Code's own working line, and the
-// time since the task started, counting up.
+// The mark of a task in progress, drawn by the surface on its own frame clock:
+// a turning glyph, as on Claude Code's own working line, and the time since
+// the task started, counting up.
 const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢']
 const FRAME_MS = 120
 
@@ -30,7 +30,8 @@ const Working: ClientModule<Props, number> = (props, surface) => {
 
   return (
     <Text bold>
-      {frame} IN PROGRESS{time}
+      {frame}
+      {time}
     </Text>
   )
 }

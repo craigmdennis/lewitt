@@ -752,7 +752,7 @@ export const register: Register = on => {
                 props={{ since: run.seenLate ? null : run.startedAt }}
               />
             ) : (
-              <Text bold>IN PROGRESS</Text>
+              <Text bold>{run.seenLate ? '' : duration(now - run.startedAt)}</Text>
             )}
           </Box>
           <Text wrap="wrap">{run.description}</Text>
