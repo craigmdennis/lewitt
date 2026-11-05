@@ -68,7 +68,7 @@ Run these checks first, and report each result in one line. A failed check does 
 
 1. **The Now view.** Check that it is installed, as "The Now view" below describes.
 2. **Sources.** Run `claude mcp list`. Name each source in the sub-agents' definitions that is not connected, and what the researcher or the engineer cannot read without it.
-3. **The session.** When the project needs screenshots of the app, check that the session file still logs in, with the check URL in `notes/app.md`. When it does not, ask the design lead to save a new session before the codebase report.
+3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL. When that fails, or `notes/app.md` has no such section, brief the front-end engineer with the "Running the app" task before the codebase report.
 
 Then ask these questions, one per message:
 
@@ -81,6 +81,7 @@ Then ask these questions, one per message:
 - Keep the design lead in the design conversation. Show work as it happens, and ask for direction at each choice that changes the design.
 - Ask one question per message, and wait for the answer.
 - When the design lead asks a question, answer it and take no further action.
+- Before asking the design lead to run a command or do a step, find out from the code, the notes and the team whether you or a team member can do it. Ask the design lead only for a decision, a credential, or a step that needs the design lead's own account or machine, and say what was tried first.
 - When the design lead gives a small fix as a Figma frame or a screenshot, apply it to the prototype and list each change.
 - Make one output per version: the prototype link and what changed. Make a Figma render or a flow diagram only when the design lead asks for one.
 - Before building, get the design lead's approval on the written option.
@@ -105,7 +106,7 @@ Start each sub-agent with the Agent tool. Run sub-agents that do not depend on e
 
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
-- **Front-end engineer.** The brief names one task: codebase report, state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version.
+- **Front-end engineer.** The brief names one task: running the app, codebase report, state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
 - **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.
 
 A sub-agent's answer comes back into this session. Keep the brief to what the task needs, and point at files instead of pasting them.

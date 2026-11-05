@@ -21,7 +21,11 @@ Name the API the dev server runs against, and the account it logs in as. When it
 - Build every change that needs the backend on a stub.
 - Never print, copy or edit the session file.
 
-When a screenshot shows the login page, the session has expired. Report it. The design lead runs `scripts/save-session.sh` to save a new one.
+When a screenshot shows the login page, the app no longer logs in. The designer briefs the front-end engineer with the "Running the app" task.
+
+### Running the app
+
+The designer writes this section from the front-end engineer's reply to the "Running the app" task: the way the app runs on this Mac, the commands in order, the ports, the account it logs in as and the check URL.
 
 ### Dev servers
 

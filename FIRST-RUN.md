@@ -35,11 +35,11 @@ Copy `templates/notes/app.md` to `notes/app.md`, then ask for:
 
 1. **The default branch** of the app repository. Read it with `git -C "$APP_REPO" symbolic-ref refs/remotes/origin/HEAD`.
 2. **Agent instructions and rule files** in the app repository, such as `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/` or `.agents/rules/`.
-3. **The API the dev server uses.** A local backend, a staging API or the production API, and the account it logs in as. If it holds real data, keep the read-only rules in the guide.
+3. **Running the app.** Brief the front-end engineer with the "Running the app" task, and write its reply into "Running the app" in `notes/app.md`. Ask the design lead only to choose between the ways it found, and for each step it could not do. If the API it runs against holds real data, keep the read-only rules in the guide.
 4. **The dev server.** The command that starts it, from `package.json`, and the port. Propose three free ports: one for the app checkout, one for the designer and one for the front-end engineer.
 5. **Showing a state.** Whether the app has a mock API library, such as MSW, the folder of its handlers, and the command that starts the dev server with mocking on.
 6. **The design system documentation.** The folders of the guidelines, the foundations and the component pages. Look for Storybook, `.mdx` files or a docs site first.
-7. **The session.** The domain the app runs on locally, and a URL that returns 200 only when logged in, such as `/api/me`. Give the design lead the command to save a session, and ask them to run it when they first need screenshots:
+7. **The session.** When the way the app runs needs a saved login: the domain the app runs on locally, and a URL that returns 200 only when logged in, such as `/api/me`. Give the design lead the command to save a session, and ask them to run it when they first need screenshots:
 
    ```sh
    scripts/save-session.sh <domain> <check url>
