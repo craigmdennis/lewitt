@@ -600,8 +600,8 @@ export const register: Register = on => {
     // One empty row, between one section and the next.
     const gap = (key: string) => <Box key={`gap-${key}`} height={1} />
 
-    // What needs the design lead, as Paperclip's Now page opened with: each open
-    // flag, newest last, with the task it comes from.
+    // What needs the design lead: each open flag, newest last, with the task it
+    // comes from.
     const band = (
       <Box
         borderStyle={waiting.length > 0 ? 'bold' : 'single'}
