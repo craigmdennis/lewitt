@@ -12,13 +12,6 @@ const runs = atom({ plugin: 'now-view', key: 'runs' } as const, [], {
 })
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
 
-const MARK: Record<RunStatus, string> = {
-  running: '>',
-  done: '-',
-  stopped: 'x',
-  failed: '!',
-}
-
 // The tool's name and the one input field that says what it is doing.
 function describeTool(e: { tool: string }): string {
   const input = e as unknown as Record<string, unknown>
@@ -40,6 +33,26 @@ function duration(ms: number): string {
   const minutes = Math.round(ms / 60000)
 
   return minutes < 1 ? `${Math.round(ms / 1000)}s` : `${minutes}m`
+}
+
+function toolCalls(count: number): string {
+  return count === 1 ? '1 tool call' : `${count} tool calls`
+}
+
+// How a finished run ended, for its row and its detail line.
+function outcome(run: Run): string {
+  const took = run.endedAt ? duration(run.endedAt - run.startedAt) : ''
+  if (run.status === 'done') return took ? `Finished in ${took}` : 'Finished'
+  const verb = run.status === 'stopped' ? 'Stopped' : 'Failed'
+
+  return took ? `${verb} after ${took}` : verb
+}
+
+const NO_ANSWER: Record<RunStatus, string> = {
+  running: 'No answer yet. The sub-agent is still working.',
+  done: 'The sub-agent finished without an answer.',
+  stopped: 'No answer. The task was stopped before it finished.',
+  failed: 'No answer. The task failed before it finished.',
 }
 
 export const register: Register = on => {
@@ -130,23 +143,38 @@ export const register: Register = on => {
     const open = list.find(one => one.id === openId)
 
     if (open) {
+      const meta =
+        open.status === 'running'
+          ? `Working since ${clockTime(open.startedAt)}, ${toolCalls(open.toolCount)} so far`
+          : `${outcome(open)}, started ${clockTime(open.startedAt)}, ${toolCalls(open.toolCount)}`
+
       return (
         <Box flexDirection="column">
           <Button key="back" hotkey="b" onPress={() => update($, selected, () => null)}>
-            Back
+            Back to the list
           </Button>
           <Text bold>
             {open.type}: {open.description}
           </Text>
-          <Text dimColor>
-            {open.status}, started {clockTime(open.startedAt)}
-            {open.endedAt ? `, took ${duration(open.endedAt - open.startedAt)}` : ''}, {open.toolCount} tool calls
-          </Text>
-          {open.lastTool && <Text dimColor>Latest: {open.lastTool}</Text>}
-          <Text bold>Brief</Text>
+          <Text dimColor>{meta}</Text>
+          {open.lastTool && <Text dimColor>Latest tool call: {open.lastTool}</Text>}
+          <Text bold>Brief from the designer</Text>
           <Markdown text={open.brief} />
-          <Text bold>Answer</Text>
-          {open.answer ? <Markdown text={open.answer} /> : <Text dimColor>Still working.</Text>}
+          <Text bold>Answer to the designer</Text>
+          {open.answer ? <Markdown text={open.answer} /> : <Text dimColor>{NO_ANSWER[open.status]}</Text>}
+        </Box>
+      )
+    }
+
+    if (list.length === 0) {
+      return (
+        <Box flexDirection="column">
+          <Text bold>No sub-agent tasks yet</Text>
+          <Text>
+            When the designer gives a task to a sub-agent, such as the copywriter or the researcher,
+            the task shows here while it runs and after it finishes.
+          </Text>
+          <Text dimColor>Select a task to read the designer's brief and the sub-agent's answer.</Text>
         </Box>
       )
     }
@@ -156,28 +184,27 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {list.length === 0 && <Text dimColor>No subagents have run in this session.</Text>}
-        {running.length > 0 && <Text bold>Working</Text>}
+        <Text dimColor>
+          Tasks the designer gave to sub-agents in this session. Select one to read its brief and
+          answer.
+        </Text>
+        {running.length > 0 && <Text bold>Working ({running.length})</Text>}
         {running.map(run => (
           <Box key={run.id} flexDirection="column">
             <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
-              {MARK[run.status]} {run.type}: {run.description}{' '}
+              {run.type}: {run.description}{' '}
               <Text dimColor>since {clockTime(run.startedAt)}</Text>
             </Button>
             <Text dimColor>
               {'  '}
-              {run.lastTool ?? 'Starting'}
+              {run.lastTool ? `Now: ${run.lastTool}` : 'Starting'}
             </Text>
           </Box>
         ))}
-        {finished.length > 0 && <Text bold>Finished</Text>}
+        {finished.length > 0 && <Text bold>Finished ({finished.length})</Text>}
         {finished.map(run => (
           <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
-            {MARK[run.status]} {run.type}: {run.description}{' '}
-            <Text dimColor>
-              {run.status}
-              {run.endedAt ? `, ${duration(run.endedAt - run.startedAt)}` : ''}
-            </Text>
+            {run.type}: {run.description} <Text dimColor>{outcome(run).toLowerCase()}</Text>
           </Button>
         ))}
       </Box>
