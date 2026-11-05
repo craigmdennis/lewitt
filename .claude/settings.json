@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "lewitt": {
+      "source": {
+        "source": "github",
+        "repo": "craigmdennis/lewitt"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "now-view@lewitt": true
+  }
+}

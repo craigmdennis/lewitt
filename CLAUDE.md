@@ -23,7 +23,7 @@ The app repository's `.git/info/exclude` lists `.lewitt/` and `.lewitt-run/`, so
 
 1. Read `lewitt.env`, and list the existing worktrees with `git -C "$APP_REPO" worktree list`.
 2. Ask the design lead before creating the worktree in `$WORKTREES_DIR`. Propose a name that follows the existing names there, and a branch named after the project.
-3. Create the worktree from the default branch, then create `.lewitt-run/` in it.
+3. Fetch the default branch with `git -C "$APP_REPO" fetch origin <default branch>`, create the worktree from `origin/<default branch>`, then create `.lewitt-run/` in it.
 4. Give each sub-agent brief the absolute path of the run folder and of the worktree.
 
 ### Where changes go
@@ -55,12 +55,26 @@ A full-stack engineer for backend changes is planned. Until it exists, the front
 
 A project runs in stages. The design lead approves each stage before the next one starts.
 
-1. **Scope.** Write `project.md` in the run folder: the problem, the decision the project supports, and the one core flow in scope. Every other part of the app is a placeholder.
-2. **Sketch.** The design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
+1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder.
+2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
 3. **Research and options.** Brief the researcher on the decision, and the front-end engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
 4. **Prototype.** Build the option the design lead chose, as version 1. Each later version builds the design lead's feedback.
 5. **Higher fidelity.** Replace each placeholder with its built state, and send every new or changed string to the copywriter.
 6. **Final build.** The front-end engineer builds from the approved prototype, then the design system work, and prepares the pull requests. See "Pull requests" below.
+
+### Starting a project
+
+Run these checks first, and report each result in one line. A failed check does not stop the project:
+
+1. **The Now view.** Check that it is installed, as "The Now view" below describes.
+2. **Sources.** Run `claude mcp list`. Name each source in the sub-agents' definitions that is not connected, and what the researcher or the engineer cannot read without it.
+3. **The session.** When the project needs screenshots of the app, check that the session file still logs in, with the check URL in `notes/app.md`. When it does not, ask the design lead to save a new session before the codebase report.
+
+Then ask these questions, one per message:
+
+1. **Links to existing work:** the Linear issue, the product spec, the Figma file and earlier research. Record each link in `project.md`.
+2. **Standalone or in code:** a new feature built as a standalone prototype, or a change to an existing page built as commits on the project branch. See "The prototype" below.
+3. **What the design lead brings:** sketches, screenshots or flows that already exist. Read each one before the Sketch stage.
 
 ## Working with the design lead
 
@@ -145,6 +159,19 @@ Read each guide once in a session, when the work needs it:
 ## The Now view
 
 The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane: working runs with their latest tool call, and finished runs with their time. Selecting a run shows its brief and its answer. The pane opens when a sub-agent starts, and `/now` opens it at any time.
+
+`.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
+
+1. Run `claude plugin list`, and look for `now-view@lewitt` with the status enabled.
+2. If it is missing or disabled, ask the design lead whether to install it, and wait for the answer.
+3. If the design lead says yes, give these two commands to run in this session, then `/reload-plugins`:
+
+   ```
+   /plugin marketplace add craigmdennis/lewitt
+   /plugin install now-view@lewitt
+   ```
+
+4. If the design lead says no, start the project without it, and ask again at the next project.
 
 ## Data and privacy
 
