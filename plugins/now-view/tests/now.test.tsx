@@ -1,4 +1,4 @@
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
 
 import { VERSION } from '../hooks/build'
 
@@ -89,6 +89,12 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   on('session.messages', () => ({ value: [] }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'c1' }))
   on('turn.complete', () => ({ text: '' }))
+  const sent: string[] = []
+  on('prompt.submit', (_, e) => {
+    sent.push(e.text)
+
+    return { text: e.text }
+  })
   on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -121,6 +127,19 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   const resolved = await $.tool.call({ tool: 'mcp__now-view__resolve_flag', id: 'F1' })
   expect(String(resolved.result)).toContain('F1 is cleared')
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  await ui.unmount()
+
+  // An answer typed in the pane goes to the designer and clears the flag.
+  await $.tool.call({
+    tool: 'mcp__now-view__flag_for_design_lead',
+    question: 'Should B move calls and texts into the credit pool?',
+  })
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.input({ key: 'answer-F2', text: 'No, keep calls and texts in dollars.' })
+  expect(sent).toHaveLength(1)
+  expect(sent[0]).toContain('No, keep calls and texts in dollars.')
+  expect(sent[0]).toContain('F2')
   expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
   await ui.unmount()
 })
@@ -161,7 +180,7 @@ test('runs that finished before the plugin loaded show from the main transcript'
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
   expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 4 MIN')
-  expect((await ui.find({ type: 'Text', text: /Most accounts/ }))?.text).toContain('Most accounts use no credits.')
+  expect(await ui.find({ type: 'Text', text: /Most accounts/ })).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: /^RESEARCHER finished/ }))?.text).toBe(
     'RESEARCHER finished: Credit research',
   )
@@ -174,40 +193,11 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
-  on('session.messages', (_, e) => ({
-    value:
-      e.agentId === 'a1'
-        ? [
-            { role: 'user', text: 'Write the toast copy.', toolUses: [] },
-            {
-              role: 'assistant',
-              text: 'The toast says Limit. The usage alerts say Usage.',
-              toolUses: [{ tool_use_id: 'u1', tool: 'Bash', input: { command: 'rg toast' } }],
-            },
-          ]
-        : [],
-  }))
+  on('session.messages', () => ({ value: [] }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
   on('tool.call', () => ({ result: {} }))
   on('turn.complete', () => ({ text: '' }))
-  const asked: string[] = []
-  on('model.complete', (_, e) => {
-    asked.push(e.prompt)
-
-    return {
-      value: {
-        isAnswered: true,
-        text: 'Rewriting the toast copy to match the usage alerts.',
-        usage: {
-          input_tokens: 1,
-          output_tokens: 1,
-          cache_creation_input_tokens: 0,
-          cache_read_input_tokens: 0,
-        },
-      },
-    }
-  })
-  const clock = mock.clock(on, { now: Date.UTC(2026, 10, 4, 15, 0) })
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.agent.spawn({
@@ -215,7 +205,19 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     description: 'Toast copy',
     subagentType: 'copywriter',
   })
-  await $.tool.call({ tool: 'Bash', command: 'rg toast', agentId: 'a1' })
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'rg toast',
+    description: 'Find where the toast copy lives',
+    agentId: 'a1',
+  })
+
+  const early = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await early.find({ type: 'Text', text: /^Find where/ }))?.text).toBe(
+    'Find where the toast copy lives',
+  )
+  await early.unmount()
+
   await $.tool.call({
     tool: 'Edit',
     file_path: '/repo/copy/Toast.mdx',
@@ -224,28 +226,17 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     agentId: 'a1',
   })
 
-  const early = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await early.find({ type: 'Text', text: /^Getting started/ }))?.text).toBe('Getting started.')
-  await early.unmount()
-
-  await clock.advance(10000)
-  expect(asked).toHaveLength(1)
-  expect(asked[0]).toContain('Task: Toast copy')
-
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
-    expect((await ui.find({ type: 'Text', text: /^Rewriting/ }))?.text).toBe(
-      'Rewriting the toast copy to match the usage alerts.',
-    )
-    expect((await ui.find({ type: 'Text', text: /Toast\.mdx$/ }))?.text).toBe('copy/Toast.mdx')
-    expect(await ui.find({ type: 'Text', text: /^Bash: / })).toBeUndefined()
+    expect((await ui.find({ type: 'Text', text: /^Editing/ }))?.text).toBe('Editing Toast.mdx')
+    // A file link is a link on the terminal and plain text where a surface
+    // takes only https links.
+    expect((await ui.find({ text: /^copy\/Toast\.mdx$/ }))?.text).toBe('copy/Toast.mdx')
+    expect(await ui.find({ type: 'Text', text: /Bash/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /CALLS/ })).toBeUndefined()
     await ui.unmount()
   }
-
-  // No new work, no new summary.
-  await clock.advance(10000)
-  expect(asked).toHaveLength(1)
 
   await $.turn.complete({
     agentId: 'a1',
@@ -258,10 +249,14 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
-  expect((await ui.find({ type: 'Text', text: /^Changed / }))?.text).toBe('Changed copy/Toast.mdx')
+  // The row holds the task and a link to the file it wrote, and the answer
+  // shows only once the task is open.
+  expect((await ui.find({ type: 'Link', text: /Toast\.mdx$/ }))?.text).toBe('copy/Toast.mdx')
+  expect(await ui.find({ type: 'Text', text: /main card/ })).toBeUndefined()
   await ui.press({ key: 'a1' })
+  expect((await ui.find({ type: 'Markdown', text: /main card/ }))?.text).toBe('Your main card was updated')
   expect((await ui.find({ type: 'Text', text: /^BRIEF/ }))?.text).toBe('BRIEF FROM THE DESIGNER')
-  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 20 SEC')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 0 SEC')
   await ui.unmount()
 })
 
@@ -291,7 +286,6 @@ test('a run that started before the plugin loaded shows at its next tool call', 
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FRONT-END ENGINEER$/ }))?.text).toBe('FRONT-END ENGINEER')
-  expect((await ui.find({ type: 'Text', text: /STARTED EARLIER/ }))?.text).toContain('FIRST SEEN')
   await ui.press({ key: 'a9' })
   expect((await ui.find({ type: 'Markdown', text: /codebase report/ }))?.text).toBe(
     'Write the codebase report.',
@@ -324,7 +318,8 @@ test("the designer's own turn shows as a card, then in the activity", async ($, 
   expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
     'Make the usage bar amber at 80%.',
   )
-  expect((await ui.find({ type: 'Text', text: /usage\.tsx$/ }))?.text).toBe('src/usage.tsx')
+  expect((await ui.find({ type: 'Text', text: /^Editing/ }))?.text).toBe('Editing usage.tsx')
+  expect((await ui.find({ type: 'Link', text: /usage\.tsx$/ }))?.text).toBe('src/usage.tsx')
   await ui.unmount()
 
   await $.turn.complete({

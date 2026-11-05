@@ -7,22 +7,8 @@ import { LOCAL, VERSION } from './build'
 const PANE = 'now-view'
 const TITLE = 'Now'
 const RECENT = 3
-// How often the pane writes a new summary of each task that did more work, and
-// how many earlier summaries a task keeps.
-const SUMMARY_MS = 10000
-const PROGRESS = 3
 const CHANGED = 6
 const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
-const SUMMARY_RULES = [
-  'You write the progress line for one task on a product design team.',
-  'The design lead reads it in a side pane to follow the work without reading the transcript.',
-  'Write one or two short sentences, at most 35 words, in the present tense, starting with a verb, such as "Checking the billing page for where usage limits show."',
-  'Say what the work is now, and what it has found, decided or changed so far.',
-  'Name a file only when the task changed it, by its file name alone.',
-  'Name no tools, commands or agent ids.',
-  'When the previous line still holds, describe the newest step instead of repeating it.',
-  'Reply with the line alone.',
-].join(' ')
 const ACTIVITY = 8
 const SHOWN = 12
 // The tasks kept for a project across chats, and the most of a brief or an
@@ -51,10 +37,6 @@ const RESOLVE_TOOL = 'mcp__now-view__resolve_flag'
 // does not hold, such as a workflow's, is looked up once.
 const looked = new Set<string>()
 
-// The runs a summary is being written for, and the timer that writes them.
-const busy = new Set<string>()
-let ticker: { cancel: () => void } | undefined
-
 // The chat this session is, and the store key of its project's tasks. A reload
 // and a new chat each run session.start, which sets both again.
 let sessionId: string | undefined
@@ -81,15 +63,55 @@ function role(type: string): string {
 // Agent call in the main transcript.
 type Found = { id: string; type: string; description: string; status: RunStatus }
 
-// The tool's name and the one input field that says what it is doing.
-function describeTool(e: { tool: string }): string {
+// A tool call in plain words: the description the caller gave it, or what
+// the tool does to what, without the tool's name.
+function step(e: { tool: string }): string {
   const input = e as unknown as Record<string, unknown>
-  const detail = ['description', 'file_path', 'pattern', 'query', 'url', 'command']
-    .map(field => input[field])
-    .find(value => typeof value === 'string' && value.length > 0) as string | undefined
-  const tool = e.tool.replace(/^mcp__/, '').replace(/__/g, ' ')
+  const text = (field: string) => {
+    const value = input[field]
 
-  return detail ? `${tool}: ${(detail.split('\n')[0] ?? '').slice(0, 80)}` : tool
+    return typeof value === 'string' && value.trim() ? (value.split('\n')[0] ?? '').trim() : undefined
+  }
+  const name = (field: string) => text(field)?.split('/').filter(Boolean).at(-1)
+  const said = text('description')
+  if (said) return said.length > 120 ? `${said.slice(0, 119)}…` : said
+  if (e.tool === FLAG_TOOL) return 'Flagging a question for you'
+  if (e.tool === RESOLVE_TOOL) return 'Clearing an answered question'
+  if (e.tool.startsWith('mcp__')) {
+    const service = (e.tool.split('__')[1] ?? '')
+      .replace(/^(claude_ai_|plugin_[^_]+_)/, '')
+      .replace(/[-_]/g, ' ')
+    const query = text('query') ?? text('pattern')
+
+    return query ? `Searching ${service} for "${query}"` : `Using ${service}`
+  }
+  switch (e.tool) {
+    case 'Read':
+      return `Reading ${name('file_path') ?? 'a file'}`
+    case 'Write':
+      return `Writing ${name('file_path') ?? 'a file'}`
+    case 'Edit':
+    case 'MultiEdit':
+      return `Editing ${name('file_path') ?? 'a file'}`
+    case 'NotebookEdit':
+      return `Editing ${name('notebook_path') ?? 'a notebook'}`
+    case 'Grep':
+      return `Searching the code for "${text('pattern') ?? ''}"`
+    case 'Glob':
+      return `Finding files named ${text('pattern') ?? ''}`
+    case 'WebSearch':
+      return `Searching the web for "${text('query') ?? ''}"`
+    case 'WebFetch':
+      return `Reading ${(text('url') ?? 'a web page').replace(/^https?:\/\//, '').split('/')[0]}`
+    case 'Skill':
+      return `Following the ${text('skill') ?? ''} skill`
+    case 'Bash':
+      return 'Running a command'
+    case 'Agent':
+      return 'Giving a task to the team'
+    default:
+      return `Using ${e.tool}`
+  }
 }
 
 function clockTime(ms: number): string {
@@ -185,7 +207,7 @@ async function adopt(
   const read = await $.session.messages({ agentId: found.id })
   const messages = Array.isArray(read) ? read : []
   const uses = messages.flatMap(one => (one.role === 'assistant' ? one.toolUses : []))
-  const calls = uses.map(use => describeTool({ ...use.input, tool: use.tool }))
+  const calls = uses.map(use => step({ ...use.input, tool: use.tool }))
   const run: Run = {
     id: found.id,
     type: found.type,
@@ -323,73 +345,6 @@ function shortPath(path: string): string {
   return path.split('/').filter(Boolean).slice(-2).join('/')
 }
 
-// Writes a new summary of one task from its latest messages.
-async function summarize($: EngineInterface, run: Run): Promise<void> {
-  const found =
-    run.type === DESIGNER
-      ? await $.session.messages()
-      : await $.session.messages({ agentId: run.id })
-  const messages = Array.isArray(found) ? found : []
-  const lines = messages.slice(-16).flatMap(one =>
-    one.role === 'assistant'
-      ? [
-          ...(one.text.trim() ? [`Wrote: ${one.text.trim().slice(0, 600)}`] : []),
-          ...one.toolUses.map(use => `Did: ${describeTool({ ...use.input, tool: use.tool })}`),
-        ]
-      : [],
-  )
-  if (lines.length === 0) return
-  const prompt = [
-    `Task: ${run.description}`,
-    `Brief: ${run.brief.slice(0, 1200)}`,
-    run.changed?.length ? `Files changed so far: ${run.changed.map(shortPath).join(', ')}` : '',
-    run.summary ? `Previous line: ${run.summary}` : '',
-    'Latest work, oldest first:',
-    ...lines,
-  ]
-    .filter(Boolean)
-    .join('\n')
-  const reply = await $.model.complete({
-    model: 'haiku',
-    system: SUMMARY_RULES,
-    prompt,
-    maxTokens: 160,
-    effort: 'low',
-    timeoutMs: 20000,
-  })
-  if (!reply.isAnswered) return
-  const summary = reply.text.trim().replace(/^["']|["']$/g, '')
-  if (!summary) return
-  await update($, runs, list =>
-    list.map((one): Run =>
-      one.id === run.id
-        ? {
-            ...one,
-            summary,
-            progress:
-              one.summary && one.summary !== summary
-                ? [...(one.progress ?? []), one.summary].slice(-PROGRESS)
-                : one.progress,
-            summarizedCount: run.toolCount,
-          }
-        : one,
-    ),
-  )
-}
-
-// Starts a summary for each task in progress that did more work since its
-// last one, one at a time per task.
-async function summarizeAll($: EngineInterface): Promise<void> {
-  for (const run of await read($, runs)) {
-    if (run.status !== 'running' || busy.has(run.id)) continue
-    if (run.toolCount <= (run.summarizedCount ?? 0)) continue
-    busy.add(run.id)
-    void summarize($, run)
-      .catch(() => undefined)
-      .finally(() => busy.delete(run.id))
-  }
-}
-
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -432,14 +387,6 @@ export const register: Register = on => {
     await loadHistory($).catch(() => undefined)
     await catchUp($)
     await save($)
-    ticker?.cancel()
-    try {
-      ticker = $.clock.every(SUMMARY_MS, () => {
-        void summarizeAll($).catch(() => undefined)
-      })
-    } catch {
-      ticker = undefined
-    }
 
     return next(e)
   })
@@ -549,7 +496,7 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
     if (id !== undefined) await seen($, id)
-    const lastTool = describeTool(e)
+    const lastTool = step(e)
     const input = e as unknown as { file_path?: unknown; notebook_path?: unknown }
     const path = EDITS.has(e.tool)
       ? [input.file_path, input.notebook_path].find(
@@ -597,7 +544,9 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const elements = $.ui.resolve(e)
-    const { Box, Text, Button, Markdown } = elements
+    const { Box, Text, Button, Markdown, Link } = elements
+    // A field for the design lead's answer, where the surface draws one.
+    const Input = 'Input' in elements ? elements.Input : undefined
     // The animated working mark, where the surface draws a Client.
     const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, runs)
@@ -614,7 +563,7 @@ export const register: Register = on => {
       LOCAL ?? ($.plugin.root.includes('/.claude/plugins/cache/') ? undefined : 'CHECKOUT')
 
     // One label and value row, as in a printed manual's specification table.
-    const field = (label: string, value: string, dim = false) => (
+    const field = (label: string, value: RenderChildren, dim = false) => (
       <Box flexDirection="row">
         <Box width={LABEL} flexShrink={0}>
           <Text dimColor>{label}</Text>
@@ -644,6 +593,9 @@ export const register: Register = on => {
         </Box>
       </Box>
     )
+
+    // A file a task changed, as a link that opens it.
+    const fileLink = (path: string) => <Link href={`file://${path}`} label={shortPath(path)} />
 
     // One empty row, between one section and the next.
     const gap = (key: string) => <Box key={`gap-${key}`} height={1} />
@@ -676,6 +628,30 @@ export const register: Register = on => {
               return (
                 <Box key={`flag-${flag.id}`} flexDirection="column" marginTop={1}>
                   <Text wrap="wrap">{flag.question}</Text>
+                  {Input && (
+                    <Box borderStyle="single" borderColor="warning" paddingX={1} marginY={1}>
+                      <Input
+                        key={`answer-${flag.id}`}
+                        placeholder="Type your answer, then press Enter"
+                        submitLabel="send"
+                        onSubmit={async value => {
+                          const answer = value.trim()
+                          if (!answer) return
+                          await $.prompt.submit({
+                            text: `${answer}\n\n(My answer to ${flag.id}: ${flag.question})`,
+                            asUser: true,
+                          })
+                          const at = await $.clock.now()
+                          await update($, flags, all =>
+                            all.map(one =>
+                              one.id === flag.id ? { ...one, resolvedAt: at, answer } : one,
+                            ),
+                          )
+                          await saveFlags($)
+                        }}
+                      />
+                    </Box>
+                  )}
                   <Box flexDirection="row" justifyContent="space-between">
                     <Box flexShrink={1}>
                       <Text dimColor wrap="wrap">
@@ -714,19 +690,12 @@ export const register: Register = on => {
           ? `${clockTime(run.startedAt)}, ${duration(now - run.startedAt)} AGO`
           : clockTime(run.startedAt)
 
-    // What a task is doing, what it did before, and the files it changed.
+    // What a task is doing now, and the files it changed.
     const progress = (run: Run) => [
-      field(
-        run.status === 'running' ? 'NOW' : 'LAST',
-        run.summary ?? (run.status === 'running' ? 'Getting started.' : 'No summary was written.'),
-      ),
-      ...(run.progress ?? [])
-        .slice()
-        .reverse()
-        .map((line, index) => field(index === 0 ? 'EARLIER' : '', line, true)),
+      run.status === 'running' && field('NOW', run.lastTool ?? 'Getting started'),
       ...(run.changed ?? [])
         .slice(-CHANGED)
-        .map((path, index) => field(index === 0 ? 'CHANGED' : '', shortPath(path))),
+        .map((path, index) => field(index === 0 ? 'CHANGED' : '', fileLink(path))),
       (run.changed?.length ?? 0) > CHANGED &&
         field('', `and ${(run.changed?.length ?? 0) - CHANGED} more`, true),
     ]
@@ -787,22 +756,8 @@ export const register: Register = on => {
       return index < 9 ? String(index + 1) : undefined
     }
 
-    const header = (
-      <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
-        <Box flexDirection="column" flexShrink={1}>
-          <Text bold>NOW</Text>
-          <Text wrap="wrap">TEAM TASKS</Text>
-        </Box>
-        <Box flexDirection="column" alignItems="flex-end" flexShrink={1}>
-          <Text>{running.length} WORKING</Text>
-          <Text>{finished.length} FINISHED</Text>
-        </Box>
-      </Box>
-    )
-
     if (list.length === 0) {
       return page(
-        header,
         band,
         gap('empty'),
         <Text bold>No tasks yet</Text>,
@@ -835,7 +790,6 @@ export const register: Register = on => {
     ].slice(0, ACTIVITY)
 
     return page(
-      header,
       band,
       running.length > 0 && gap('working'),
       running.length > 0 && <Text bold>WORKING ({running.length})</Text>,
@@ -860,7 +814,6 @@ export const register: Register = on => {
           </Box>
           <Text wrap="wrap">{run.description}</Text>
           <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
-          {field('STARTED', started(run))}
           {progress(run)}
         </Box>
       )),
@@ -889,20 +842,15 @@ export const register: Register = on => {
           <Box paddingLeft={4}>
             <Text wrap="wrap">{run.description}</Text>
           </Box>
-          {run.answer && (
-            <Box paddingLeft={4}>
-              <Text dimColor wrap="wrap">
-                {firstLine(run.answer)}
-              </Text>
-            </Box>
-          )}
-          {(run.changed?.length ?? 0) > 0 && (
-            <Box paddingLeft={4}>
-              <Text dimColor wrap="wrap">
-                Changed {(run.changed ?? []).map(shortPath).join(', ')}
-              </Text>
-            </Box>
-          )}
+          {(run.changed ?? [])
+            .filter(path => /\.(md|mdx|markdown)$/i.test(path))
+            .map(path => (
+              <Box key={`report-${run.id}-${path}`} paddingLeft={4}>
+                <Text dimColor wrap="wrap">
+                  {fileLink(path)}
+                </Text>
+              </Box>
+            ))}
           <Text dimColor>{single}</Text>
         </Box>
       )),
@@ -928,7 +876,7 @@ export const register: Register = on => {
       )),
       gap('hint'),
       <Text dimColor wrap="wrap">
-        Press a task's number to read its brief and answer.
+        Press a task's number to read its brief, its answer and the files it changed.
       </Text>,
     )
   })

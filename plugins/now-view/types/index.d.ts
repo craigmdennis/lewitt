@@ -20,13 +20,6 @@ export type Run = {
   // before the plugin loaded.
   durationMs?: number
   answer?: string
-  // What the task is doing now, in a sentence a small model writes from its
-  // latest messages, and the sentences before it, oldest first.
-  summary?: string
-  progress?: string[]
-  // The tool count when the summary was written, so the next is written only
-  // after more work.
-  summarizedCount?: number
   // The files the task wrote or edited, in the order it first changed them.
   changed?: string[]
   // The chat the run belongs to, so a later chat in the project lists it as
@@ -43,6 +36,8 @@ export type Flag = {
   agentId?: string
   at: number
   resolvedAt?: number
+  // What the design lead typed in the pane, which went to the designer.
+  answer?: string
 }
 
 declare module 'claude-code' {
