@@ -405,6 +405,9 @@ export const register: Register = on => {
       </Box>
     )
 
+    // One empty row, between one section and the next.
+    const gap = (key: string) => <Box key={`gap-${key}`} height={1} />
+
     const started = (run: Run) =>
       run.seenLate
         ? run.status === 'running'
@@ -432,10 +435,12 @@ export const register: Register = on => {
         field('STARTED', started(open)),
         field('TOOLS', toolCalls(open.toolCount)),
         open.lastTool && field('LATEST', open.lastTool),
+        gap('brief'),
         <Text>{double}</Text>,
         <Text bold>BRIEF FROM THE DESIGNER</Text>,
         <Text dimColor>{single}</Text>,
         open.brief ? <Markdown text={open.brief} /> : <Text dimColor>No brief was recorded.</Text>,
+        gap('answer'),
         <Text>{double}</Text>,
         <Text bold>ANSWER TO THE DESIGNER</Text>,
         <Text dimColor>{single}</Text>,
@@ -474,6 +479,7 @@ export const register: Register = on => {
     if (list.length === 0) {
       return page(
         header,
+        gap('empty'),
         <Text bold>No tasks yet</Text>,
         <Text wrap="wrap">
           When the designer gives a task to a team member, such as the copywriter or the
@@ -505,6 +511,7 @@ export const register: Register = on => {
 
     return page(
       header,
+      running.length > 0 && gap('working'),
       running.length > 0 && <Text bold>WORKING ({running.length})</Text>,
       running.length > 0 && <Text>{double}</Text>,
       ...running.map(run => (
@@ -537,6 +544,7 @@ export const register: Register = on => {
             .map((call, index) => field(index === 0 ? 'BEFORE' : '', call, true))}
         </Box>
       )),
+      finished.length > 0 && gap('finished'),
       finished.length > 0 && <Text bold>FINISHED ({finished.length})</Text>,
       finished.length > 0 && <Text>{double}</Text>,
       ...finished.slice(0, SHOWN).map(run => (
@@ -571,6 +579,7 @@ export const register: Register = on => {
           {finished.length - SHOWN} earlier finished tasks are in the project's history.
         </Text>
       ),
+      gap('activity'),
       <Text bold>ACTIVITY</Text>,
       <Text>{double}</Text>,
       ...activity.map(one => (
@@ -585,6 +594,7 @@ export const register: Register = on => {
           </Box>
         </Box>
       )),
+      gap('hint'),
       <Text dimColor wrap="wrap">
         Press a task's number to read its brief and answer.
       </Text>,
