@@ -802,10 +802,6 @@ export const register: Register = on => {
           {finished.length - SHOWN} earlier finished tasks are in the project's history.
         </Text>
       ),
-      gap('hint'),
-      <Text dimColor wrap="wrap">
-        Select a task to read its brief, its answer and the files it changed.
-      </Text>,
     )
   })
 }
