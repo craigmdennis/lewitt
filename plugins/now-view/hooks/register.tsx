@@ -7,6 +7,22 @@ import { LOCAL, VERSION } from './build'
 const PANE = 'now-view'
 const TITLE = 'Now'
 const RECENT = 3
+// How often the pane writes a new summary of each task that did more work, and
+// how many earlier summaries a task keeps.
+const SUMMARY_MS = 10000
+const PROGRESS = 3
+const CHANGED = 6
+const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
+const SUMMARY_RULES = [
+  'You write the progress line for one task on a product design team.',
+  'The design lead reads it in a side pane to follow the work without reading the transcript.',
+  'Write one or two short sentences, at most 35 words, in the present tense, starting with a verb, such as "Checking the billing page for where usage limits show."',
+  'Say what the work is now, and what it has found, decided or changed so far.',
+  'Name a file only when the task changed it, by its file name alone.',
+  'Name no tools, commands or agent ids.',
+  'When the previous line still holds, describe the newest step instead of repeating it.',
+  'Reply with the line alone.',
+].join(' ')
 const ACTIVITY = 8
 const SHOWN = 12
 // The tasks kept for a project across chats, and the most of a brief or an
@@ -34,6 +50,10 @@ const RESOLVE_TOOL = 'mcp__now-view__resolve_flag'
 // The ids already looked up in the session's agent list, so a run the list
 // does not hold, such as a workflow's, is looked up once.
 const looked = new Set<string>()
+
+// The runs a summary is being written for, and the timer that writes them.
+const busy = new Set<string>()
+let ticker: { cancel: () => void } | undefined
 
 // The chat this session is, and the store key of its project's tasks. A reload
 // and a new chat each run session.start, which sets both again.
@@ -93,10 +113,6 @@ function duration(ms: number): string {
   const minutes = Math.round(ms / 60000)
 
   return minutes < 1 ? `${Math.round(ms / 1000)} SEC` : `${minutes} MIN`
-}
-
-function toolCalls(count: number): string {
-  return count === 1 ? '1 CALL' : `${count} CALLS`
 }
 
 function firstLine(text: string): string {
@@ -302,6 +318,78 @@ async function saveFlags($: EngineInterface): Promise<void> {
   await $.store.set(flagsKey, kept).catch(() => undefined)
 }
 
+// The last part of a path, which names the file without the folders above it.
+function shortPath(path: string): string {
+  return path.split('/').filter(Boolean).slice(-2).join('/')
+}
+
+// Writes a new summary of one task from its latest messages.
+async function summarize($: EngineInterface, run: Run): Promise<void> {
+  const found =
+    run.type === DESIGNER
+      ? await $.session.messages()
+      : await $.session.messages({ agentId: run.id })
+  const messages = Array.isArray(found) ? found : []
+  const lines = messages.slice(-16).flatMap(one =>
+    one.role === 'assistant'
+      ? [
+          ...(one.text.trim() ? [`Wrote: ${one.text.trim().slice(0, 600)}`] : []),
+          ...one.toolUses.map(use => `Did: ${describeTool({ ...use.input, tool: use.tool })}`),
+        ]
+      : [],
+  )
+  if (lines.length === 0) return
+  const prompt = [
+    `Task: ${run.description}`,
+    `Brief: ${run.brief.slice(0, 1200)}`,
+    run.changed?.length ? `Files changed so far: ${run.changed.map(shortPath).join(', ')}` : '',
+    run.summary ? `Previous line: ${run.summary}` : '',
+    'Latest work, oldest first:',
+    ...lines,
+  ]
+    .filter(Boolean)
+    .join('\n')
+  const reply = await $.model.complete({
+    model: 'haiku',
+    system: SUMMARY_RULES,
+    prompt,
+    maxTokens: 160,
+    effort: 'low',
+    timeoutMs: 20000,
+  })
+  if (!reply.isAnswered) return
+  const summary = reply.text.trim().replace(/^["']|["']$/g, '')
+  if (!summary) return
+  await update($, runs, list =>
+    list.map((one): Run =>
+      one.id === run.id
+        ? {
+            ...one,
+            summary,
+            progress:
+              one.summary && one.summary !== summary
+                ? [...(one.progress ?? []), one.summary].slice(-PROGRESS)
+                : one.progress,
+            summarizedCount: run.toolCount,
+          }
+        : one,
+    ),
+  )
+}
+
+// Starts a summary for each task in progress that did more work since its
+// last one, one at a time per task.
+async function summarizeAll($: EngineInterface): Promise<void> {
+  for (const run of await read($, runs)) {
+    if (run.status !== 'running' || busy.has(run.id)) continue
+    if (run.toolCount <= (run.summarizedCount ?? 0)) continue
+    busy.add(run.id)
+    void summarize($, run)
+      .catch(() => undefined)
+      .finally(() => busy.delete(run.id))
+  }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -344,6 +432,14 @@ export const register: Register = on => {
     await loadHistory($).catch(() => undefined)
     await catchUp($)
     await save($)
+    ticker?.cancel()
+    try {
+      ticker = $.clock.every(SUMMARY_MS, () => {
+        void summarizeAll($).catch(() => undefined)
+      })
+    } catch {
+      ticker = undefined
+    }
 
     return next(e)
   })
@@ -454,6 +550,12 @@ export const register: Register = on => {
     const id = e.agentId
     if (id !== undefined) await seen($, id)
     const lastTool = describeTool(e)
+    const input = e as unknown as { file_path?: unknown; notebook_path?: unknown }
+    const path = EDITS.has(e.tool)
+      ? [input.file_path, input.notebook_path].find(
+          (value): value is string => typeof value === 'string' && value.length > 0,
+        )
+      : undefined
     // A main-loop call belongs to the designer's turn in progress.
     const mine = (one: Run) =>
       id !== undefined ? one.id === id : one.type === DESIGNER && one.status === 'running'
@@ -465,6 +567,10 @@ export const register: Register = on => {
               lastTool,
               recent: one.lastTool ? [...(one.recent ?? []), one.lastTool].slice(-RECENT) : one.recent,
               toolCount: one.toolCount + 1,
+              changed:
+                path && !(one.changed ?? []).includes(path)
+                  ? [...(one.changed ?? []), path]
+                  : one.changed,
             }
           : one,
       ),
@@ -608,6 +714,23 @@ export const register: Register = on => {
           ? `${clockTime(run.startedAt)}, ${duration(now - run.startedAt)} AGO`
           : clockTime(run.startedAt)
 
+    // What a task is doing, what it did before, and the files it changed.
+    const progress = (run: Run) => [
+      field(
+        run.status === 'running' ? 'NOW' : 'LAST',
+        run.summary ?? (run.status === 'running' ? 'Getting started.' : 'No summary was written.'),
+      ),
+      ...(run.progress ?? [])
+        .slice()
+        .reverse()
+        .map((line, index) => field(index === 0 ? 'EARLIER' : '', line, true)),
+      ...(run.changed ?? [])
+        .slice(-CHANGED)
+        .map((path, index) => field(index === 0 ? 'CHANGED' : '', shortPath(path))),
+      (run.changed?.length ?? 0) > CHANGED &&
+        field('', `and ${(run.changed?.length ?? 0) - CHANGED} more`, true),
+    ]
+
     if (open) {
       // The designer's turn is the chat itself, with no transcript of its own.
       const own = open.type === DESIGNER
@@ -632,8 +755,7 @@ export const register: Register = on => {
           .map(flag => field('NEEDS YOU', `${flag.question} (${flag.id})`)),
         field('STATUS', open.status === 'running' ? 'IN PROGRESS' : outcome(open)),
         field('STARTED', started(open)),
-        field('TOOLS', toolCalls(open.toolCount)),
-        open.lastTool && field('LATEST', open.lastTool),
+        ...progress(open),
         gap('brief'),
         <Text>{double}</Text>,
         <Text bold>{own ? 'REQUEST FROM THE DESIGN LEAD' : 'BRIEF FROM THE DESIGNER'}</Text>,
@@ -664,7 +786,6 @@ export const register: Register = on => {
 
       return index < 9 ? String(index + 1) : undefined
     }
-    const calls = team.reduce((sum, one) => sum + one.toolCount, 0)
 
     const header = (
       <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
@@ -673,10 +794,8 @@ export const register: Register = on => {
           <Text wrap="wrap">TEAM TASKS</Text>
         </Box>
         <Box flexDirection="column" alignItems="flex-end" flexShrink={1}>
-          <Text>
-            {running.length} WORKING, {finished.length} FINISHED
-          </Text>
-          <Text>{toolCalls(calls).replace('CALL', 'TOOL CALL')}</Text>
+          <Text>{running.length} WORKING</Text>
+          <Text>{finished.length} FINISHED</Text>
         </Box>
       </Box>
     )
@@ -742,12 +861,7 @@ export const register: Register = on => {
           <Text wrap="wrap">{run.description}</Text>
           <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
           {field('STARTED', started(run))}
-          {field('TOOLS', toolCalls(run.toolCount))}
-          {field('NOW', run.lastTool ?? 'Starting')}
-          {(run.recent ?? [])
-            .slice()
-            .reverse()
-            .map((call, index) => field(index === 0 ? 'BEFORE' : '', call, true))}
+          {progress(run)}
         </Box>
       )),
       finished.length > 0 && gap('finished'),
@@ -779,6 +893,13 @@ export const register: Register = on => {
             <Box paddingLeft={4}>
               <Text dimColor wrap="wrap">
                 {firstLine(run.answer)}
+              </Text>
+            </Box>
+          )}
+          {(run.changed?.length ?? 0) > 0 && (
+            <Box paddingLeft={4}>
+              <Text dimColor wrap="wrap">
+                Changed {(run.changed ?? []).map(shortPath).join(', ')}
               </Text>
             </Box>
           )}

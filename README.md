@@ -39,11 +39,11 @@ Two hooks hold each sub-agent to its column:
 `plugins/now-view/` is a Claude Code mod. It adds a pane beside the chat:
 
 - **Needs you:** at the top, each question the designer flagged for the design lead, with the task it comes from. The designer flags a question with the `flag_for_design_lead` tool, and the design lead gets a notification. The designer's `resolve_flag` call, or "Mark answered" in the pane, clears it. With no open question, the band reads "NOTHING NEEDS YOU".
-- **Working:** a card for each task in progress: the team member's role, the task, a turning mark with the time since the task started, its number of tool calls, its latest tool call and the three before it. While the designer works on a request in the chat, the DESIGNER card comes first, with the request as its task.
-- **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, how long it took, and the first line of its answer.
+- **Working:** a card for each task in progress: the team member's role, the task, a turning mark with the time since the task started, a line on what it is doing now with the lines before it, and the files it changed. Every 10 seconds, for each task that did more work, the pane asks Haiku for a new line from the task's latest messages. Each line is one small Haiku call, billed to the session's account. While the designer works on a request in the chat, the DESIGNER card comes first, with the request as its task.
+- **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, how long it took, the first line of its answer, and the files it changed.
 - **Activity:** each start and end in the session, newest first, with its time. The designer's requests show here when they end, and not under Finished, as the chat holds them.
 - The footer, at the bottom of the pane, shows the version. A copy made from a checkout also shows LOCAL with the commit it came from.
-- A run's number opens it: its status, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
+- A run's number opens it: its status, its progress lines, the files it changed, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
 
 The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
 

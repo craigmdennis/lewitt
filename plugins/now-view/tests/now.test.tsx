@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { VERSION } from '../hooks/build'
 
@@ -174,11 +174,40 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
-  on('session.messages', () => ({ value: [] }))
+  on('session.messages', (_, e) => ({
+    value:
+      e.agentId === 'a1'
+        ? [
+            { role: 'user', text: 'Write the toast copy.', toolUses: [] },
+            {
+              role: 'assistant',
+              text: 'The toast says Limit. The usage alerts say Usage.',
+              toolUses: [{ tool_use_id: 'u1', tool: 'Bash', input: { command: 'rg toast' } }],
+            },
+          ]
+        : [],
+  }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
   on('tool.call', () => ({ result: {} }))
   on('turn.complete', () => ({ text: '' }))
-  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+  const asked: string[] = []
+  on('model.complete', (_, e) => {
+    asked.push(e.prompt)
+
+    return {
+      value: {
+        isAnswered: true,
+        text: 'Rewriting the toast copy to match the usage alerts.',
+        usage: {
+          input_tokens: 1,
+          output_tokens: 1,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    }
+  })
+  const clock = mock.clock(on, { now: Date.UTC(2026, 10, 4, 15, 0) })
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.agent.spawn({
@@ -187,16 +216,36 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     subagentType: 'copywriter',
   })
   await $.tool.call({ tool: 'Bash', command: 'rg toast', agentId: 'a1' })
-  await $.tool.call({ tool: 'Read', file_path: '/repo/Toast.mdx', agentId: 'a1' })
+  await $.tool.call({
+    tool: 'Edit',
+    file_path: '/repo/copy/Toast.mdx',
+    old_string: 'Limit',
+    new_string: 'Usage',
+    agentId: 'a1',
+  })
+
+  const early = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await early.find({ type: 'Text', text: /^Getting started/ }))?.text).toBe('Getting started.')
+  await early.unmount()
+
+  await clock.advance(10000)
+  expect(asked).toHaveLength(1)
+  expect(asked[0]).toContain('Task: Toast copy')
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
-    expect((await ui.find({ type: 'Text', text: /^Read: / }))?.text).toBe('Read: /repo/Toast.mdx')
-    expect((await ui.find({ type: 'Text', text: /^Bash: / }))?.text).toBe('Bash: rg toast')
-    expect((await ui.find({ type: 'Text', text: /^2 CALLS$/ }))?.text).toBe('2 CALLS')
+    expect((await ui.find({ type: 'Text', text: /^Rewriting/ }))?.text).toBe(
+      'Rewriting the toast copy to match the usage alerts.',
+    )
+    expect((await ui.find({ type: 'Text', text: /Toast\.mdx$/ }))?.text).toBe('copy/Toast.mdx')
+    expect(await ui.find({ type: 'Text', text: /^Bash: / })).toBeUndefined()
     await ui.unmount()
   }
+
+  // No new work, no new summary.
+  await clock.advance(10000)
+  expect(asked).toHaveLength(1)
 
   await $.turn.complete({
     agentId: 'a1',
@@ -209,9 +258,10 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
+  expect((await ui.find({ type: 'Text', text: /^Changed / }))?.text).toBe('Changed copy/Toast.mdx')
   await ui.press({ key: 'a1' })
   expect((await ui.find({ type: 'Text', text: /^BRIEF/ }))?.text).toBe('BRIEF FROM THE DESIGNER')
-  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 0 SEC')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 20 SEC')
   await ui.unmount()
 })
 
@@ -240,8 +290,7 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   await $.tool.call({ tool: 'Read', file_path: '/repo/billing.py', agentId: 'a9' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^Read: / }))?.text).toBe('Read: /repo/billing.py')
-  expect((await ui.find({ type: 'Text', text: /^Glob: / }))?.text).toBe('Glob: **/*.ts')
+  expect((await ui.find({ type: 'Text', text: /^FRONT-END ENGINEER$/ }))?.text).toBe('FRONT-END ENGINEER')
   expect((await ui.find({ type: 'Text', text: /STARTED EARLIER/ }))?.text).toContain('FIRST SEEN')
   await ui.press({ key: 'a9' })
   expect((await ui.find({ type: 'Markdown', text: /codebase report/ }))?.text).toBe(
@@ -275,9 +324,7 @@ test("the designer's own turn shows as a card, then in the activity", async ($, 
   expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
     'Make the usage bar amber at 80%.',
   )
-  expect((await ui.find({ type: 'Text', text: /^Edit: / }))?.text).toBe(
-    'Edit: /run/prototype/v2/src/usage.tsx',
-  )
+  expect((await ui.find({ type: 'Text', text: /usage\.tsx$/ }))?.text).toBe('src/usage.tsx')
   await ui.unmount()
 
   await $.turn.complete({
