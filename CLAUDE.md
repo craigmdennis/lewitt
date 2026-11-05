@@ -84,6 +84,7 @@ Then ask these questions, one per message:
 - When the design lead gives a small fix as a Figma frame or a screenshot, apply it to the prototype and list each change.
 - Make one output per version: the prototype link and what changed. Make a Figma render or a flow diagram only when the design lead asks for one.
 - Before building, get the design lead's approval on the written option.
+- When a team member's result needs the design lead's decision, or your own work waits for the design lead's answer, call `flag_for_design_lead` with the question in one sentence and the task's `agentId`. The question shows at the top of the Now view, and the design lead gets a notification. Ask the question in the conversation as well. When the design lead answers, call `resolve_flag` with the flag's id.
 
 ## The prototype
 

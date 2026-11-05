@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { AgentInfo, EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { Run, RunStatus } from '../types'
+import type { Flag, Run, RunStatus } from '../types'
 import { LOCAL, VERSION } from './build'
 
 const PANE = 'now-view'
@@ -20,7 +20,13 @@ const LABEL = 9
 const runs = atom({ plugin: 'now-view', key: 'runs' } as const, [], {
   shape: 'runs-1',
 })
+const flags = atom({ plugin: 'now-view', key: 'flags' } as const, [], { shape: 'flags-1' })
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
+
+// The tools the designer calls to flag a question for the design lead, and to
+// clear the flag once the design lead answers it.
+const FLAG_TOOL = 'mcp__now-view__flag_for_design_lead'
+const RESOLVE_TOOL = 'mcp__now-view__resolve_flag'
 
 // The ids already looked up in the session's agent list, so a run the list
 // does not hold, such as a workflow's, is looked up once.
@@ -30,6 +36,7 @@ const looked = new Set<string>()
 // and a new chat each run session.start, which sets both again.
 let sessionId: string | undefined
 let storeKey: string | undefined
+let flagsKey: string | undefined
 
 // The team's names for the agent types the designer gives tasks to.
 const ROLE: Record<string, string> = {
@@ -222,7 +229,16 @@ async function loadHistory($: EngineInterface): Promise<void> {
   sessionId = await $.session.id().catch(() => undefined)
   const root = await $.session.root().catch(() => undefined)
   storeKey = root ? `runs:${root}` : undefined
+  flagsKey = root ? `flags:${root}` : undefined
   if (!storeKey) return
+  const keptFlags = await $.store.get(`flags:${root}`).catch(() => undefined)
+  if (Array.isArray(keptFlags)) {
+    await update($, flags, list => {
+      const ids = new Set(list.map(one => one.id))
+
+      return [...(keptFlags as Flag[]).filter(one => !ids.has(one.id)), ...list]
+    })
+  }
   const stored = await $.store.get(storeKey).catch(() => undefined)
   if (!Array.isArray(stored)) return
   const earlier = (stored as Run[]).filter(
@@ -255,6 +271,18 @@ async function save($: EngineInterface): Promise<void> {
   await $.store.set(storeKey, kept).catch(() => undefined)
 }
 
+// Keeps the project's flags in the store, merged with what another chat in the
+// project kept there meanwhile. The last 100 stay.
+async function saveFlags($: EngineInterface): Promise<void> {
+  if (!flagsKey) return
+  const stored = await $.store.get(flagsKey).catch(() => undefined)
+  const byId = new Map<string, Flag>()
+  for (const flag of Array.isArray(stored) ? (stored as Flag[]) : []) byId.set(flag.id, flag)
+  for (const flag of await read($, flags)) byId.set(flag.id, flag)
+  const kept = [...byId.values()].sort((a, b) => a.at - b.at).slice(-HISTORY)
+  await $.store.set(flagsKey, kept).catch(() => undefined)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -262,6 +290,38 @@ export const register: Register = on => {
       description: "Show the team's tasks in this project in a pane",
     })
     // A reload runs session.start again, with the session's agents still working.
+    await $.tool.register({
+      name: 'flag_for_design_lead',
+      description:
+        "Shows a question or decision for the design lead at the top of the Now pane, and sends the design lead a notification. Call it when a team member's result needs the design lead's decision, or when your own work waits for the design lead's answer. Give the question in one sentence that makes sense without the conversation. Returns the flag's id, such as F3. Call resolve_flag with that id when the design lead answers.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          question: {
+            type: 'string',
+            description: 'The question or decision for the design lead, in one sentence.',
+          },
+          agent_id: {
+            type: 'string',
+            description:
+              'The agentId the Agent tool returned for the task the question comes from. Leave it out for a question from your own work.',
+          },
+        },
+        required: ['question'],
+      },
+      isDeferred: false,
+    }).catch(() => undefined)
+    await $.tool.register({
+      name: 'resolve_flag',
+      description:
+        'Clears a flag from the top of the Now pane once the design lead has answered it. Takes the id that flag_for_design_lead returned, such as F3.',
+      inputSchema: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'The flag id, such as F3.' } },
+        required: ['id'],
+      },
+      isDeferred: false,
+    }).catch(() => undefined)
     await loadHistory($).catch(() => undefined)
     await catchUp($)
     await save($)
@@ -316,6 +376,36 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('tool.call', { tool: FLAG_TOOL }, async ($, e) => {
+    const input = e as unknown as { question?: string; agent_id?: string }
+    const question = (input.question ?? '').trim()
+    if (!question) return { result: 'No flag: the question is empty.' }
+    const known = await read($, flags)
+    const id = `F${known.reduce((most, one) => Math.max(most, Number(one.id.slice(1)) || 0), 0) + 1}`
+    const flag: Flag = { id, question, agentId: input.agent_id, at: await $.clock.now() }
+    await update($, flags, list => [...list, flag].slice(-HISTORY))
+    await saveFlags($)
+    void $.ui.open({ id: PANE, title: TITLE })
+    const sent = await $.ui.notify(question, { title: 'Needs you' }).catch(() => undefined)
+
+    return {
+      result: `Flagged as ${id}. The Now pane shows it at the top${
+        sent?.isSent ? ', and a notification went to the design lead' : ''
+      }. Call resolve_flag with ${id} when the design lead answers.`,
+    }
+  })
+
+  on('tool.call', { tool: RESOLVE_TOOL }, async ($, e) => {
+    const id = String((e as unknown as { id?: string }).id ?? '').trim().toUpperCase()
+    const open = (await read($, flags)).find(one => one.id === id && one.resolvedAt === undefined)
+    if (!open) return { result: `No open flag ${id}.` }
+    const at = await $.clock.now()
+    await update($, flags, list => list.map(one => (one.id === id ? { ...one, resolvedAt: at } : one)))
+    await saveFlags($)
+
+    return { result: `${id} is cleared from the Now pane.` }
+  })
+
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined) {
       const id = e.agentId
@@ -362,6 +452,7 @@ export const register: Register = on => {
     // The animated working mark, where the surface draws a Client.
     const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, runs)
+    const waiting = (await read($, flags)).filter(one => one.resolvedAt === undefined)
     const openId = await read($, selected)
     const open = list.find(one => one.id === openId)
     const now = await $.clock.now()
@@ -408,6 +499,63 @@ export const register: Register = on => {
     // One empty row, between one section and the next.
     const gap = (key: string) => <Box key={`gap-${key}`} height={1} />
 
+    // What needs the design lead, as Paperclip's Now page opened with: each open
+    // flag, newest last, with the task it comes from.
+    const band = (
+      <Box
+        borderStyle={waiting.length > 0 ? 'bold' : 'single'}
+        borderColor={waiting.length > 0 ? 'warning' : undefined}
+        borderDimColor={waiting.length === 0}
+        flexDirection="column"
+        paddingX={1}
+      >
+        {waiting.length === 0 ? (
+          <Box flexDirection="column">
+            <Text bold>NOTHING NEEDS YOU</Text>
+            <Text dimColor wrap="wrap">
+              A question for you shows here first.
+            </Text>
+          </Box>
+        ) : (
+          <Box flexDirection="column">
+            <Text bold color="warning">
+              {waiting.length === 1 ? '1 THING NEEDS YOU' : `${waiting.length} THINGS NEED YOU`}
+            </Text>
+            {waiting.map(flag => {
+              const from = list.find(one => one.id === flag.agentId)
+
+              return (
+                <Box key={`flag-${flag.id}`} flexDirection="column" marginTop={1}>
+                  <Text wrap="wrap">{flag.question}</Text>
+                  <Box flexDirection="row" justifyContent="space-between">
+                    <Box flexShrink={1}>
+                      <Text dimColor wrap="wrap">
+                        {flag.id}, {stamp(flag.at, now)}
+                        {from ? `, ${role(from.type)}: ${from.description}` : ', FROM THE DESIGNER'}
+                      </Text>
+                    </Box>
+                    <Button
+                      key={`answered-${flag.id}`}
+                      plain
+                      onPress={async () => {
+                        const at = await $.clock.now()
+                        await update($, flags, all =>
+                          all.map(one => (one.id === flag.id ? { ...one, resolvedAt: at } : one)),
+                        )
+                        await saveFlags($)
+                      }}
+                    >
+                      <Text dimColor>Mark answered</Text>
+                    </Button>
+                  </Box>
+                </Box>
+              )
+            })}
+          </Box>
+        )}
+      </Box>
+    )
+
     const started = (run: Run) =>
       run.seenLate
         ? run.status === 'running'
@@ -431,6 +579,9 @@ export const register: Register = on => {
           <Text bold>{role(open.type)}</Text>
           <Text wrap="wrap">{open.description}</Text>
         </Box>,
+        ...waiting
+          .filter(flag => flag.agentId === open.id)
+          .map(flag => field('NEEDS YOU', `${flag.question} (${flag.id})`)),
         field('STATUS', open.status === 'running' ? 'IN PROGRESS' : outcome(open)),
         field('STARTED', started(open)),
         field('TOOLS', toolCalls(open.toolCount)),
@@ -479,6 +630,7 @@ export const register: Register = on => {
     if (list.length === 0) {
       return page(
         header,
+        band,
         gap('empty'),
         <Text bold>No tasks yet</Text>,
         <Text wrap="wrap">
@@ -511,6 +663,7 @@ export const register: Register = on => {
 
     return page(
       header,
+      band,
       running.length > 0 && gap('working'),
       running.length > 0 && <Text bold>WORKING ({running.length})</Text>,
       running.length > 0 && <Text>{double}</Text>,
@@ -555,10 +708,16 @@ export const register: Register = on => {
               {role(run.type)}
             </Button>
             <Box flexShrink={0} marginLeft={1}>
-              <Text dimColor>
-                {outcome(run)}
-                {run.endedAt !== undefined ? `, ${stamp(run.endedAt, now)}` : ''}
-              </Text>
+              {waiting.some(flag => flag.agentId === run.id) ? (
+                <Text bold color="warning">
+                  NEEDS YOU
+                </Text>
+              ) : (
+                <Text dimColor>
+                  {outcome(run)}
+                  {run.endedAt !== undefined ? `, ${stamp(run.endedAt, now)}` : ''}
+                </Text>
+              )}
             </Box>
           </Box>
           <Box paddingLeft={4}>

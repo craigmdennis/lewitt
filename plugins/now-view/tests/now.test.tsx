@@ -79,6 +79,52 @@ test('a new chat lists the tasks of earlier chats in the project, with team name
   await ui.unmount()
 })
 
+test('a flag from the designer shows at the top until it is resolved', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('tool.register', (_, e) => ({ value: { tool: `mcp__now-view__${e.name}` } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.notify', () => ({ value: { isSent: true, channel: 'ghostty' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('agent.spawn', () => ({ model: 'sonnet', agentId: 'c1' }))
+  on('turn.complete', () => ({ text: '' }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  await ui.unmount()
+
+  await $.agent.spawn({ prompt: 'Write the toast copy.', description: 'Toast copy', subagentType: 'copywriter' })
+  await $.turn.complete({
+    agentId: 'c1',
+    answer: 'Two options for the title.',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 't1',
+    reason: 'answer',
+  })
+  const flagged = await $.tool.call({
+    tool: 'mcp__now-view__flag_for_design_lead',
+    question: 'Which toast title do you want, "Saved" or "Changes saved"?',
+    agent_id: 'c1',
+  })
+  expect(String(flagged.result)).toContain('Flagged as F1')
+
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /THING NEEDS YOU$/ }))?.text).toBe('1 THING NEEDS YOU')
+  expect((await ui.find({ type: 'Text', text: /toast title/ }))?.text).toContain('Changes saved')
+  expect((await ui.find({ type: 'Text', text: /^F1, / }))?.text).toMatch(/^F1, \d\d:\d\d, COPYWRITER: Toast copy$/)
+  await ui.unmount()
+
+  const resolved = await $.tool.call({ tool: 'mcp__now-view__resolve_flag', id: 'F1' })
+  expect(String(resolved.result)).toContain('F1 is cleared')
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  await ui.unmount()
+})
+
 test('runs that finished before the plugin loaded show from the main transcript', async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))

@@ -38,6 +38,7 @@ Two hooks hold each sub-agent to its column:
 
 `plugins/now-view/` is a Claude Code mod. It adds a pane beside the chat:
 
+- **Needs you:** at the top, each question the designer flagged for the design lead, with the task it comes from. The designer flags a question with the `flag_for_design_lead` tool, and the design lead gets a notification. The designer's `resolve_flag` call, or "Mark answered" in the pane, clears it. With no open question, the band reads "NOTHING NEEDS YOU".
 - **Working:** a card for each task in progress: the team member's role, the task, a turning mark with the time since the task started, its number of tool calls, its latest tool call and the three before it.
 - **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, how long it took, and the first line of its answer.
 - **Activity:** each start and end in the session, newest first, with its time.

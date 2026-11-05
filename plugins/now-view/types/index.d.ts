@@ -25,10 +25,22 @@ export type Run = {
   sessionId?: string
 }
 
+// A question or decision the designer flagged for the design lead.
+export type Flag = {
+  // F1, F2 and on, through the project's history.
+  id: string
+  question: string
+  // The task the question comes from, when it comes from one.
+  agentId?: string
+  at: number
+  resolvedAt?: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'now-view': {
       runs: Shaped<Run[]>
+      flags: Shaped<Flag[]>
       selected: string | null
     }
   }
