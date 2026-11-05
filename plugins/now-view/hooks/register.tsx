@@ -9,7 +9,6 @@ const TITLE = 'Now'
 const RECENT = 3
 const CHANGED = 6
 const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
-const ACTIVITY = 8
 const SHOWN = 12
 // The tasks kept for a project across chats, and the most of a brief or an
 // answer kept with each, so the store stays well under its 4 MiB.
@@ -146,13 +145,6 @@ const STATUS: Record<RunStatus, string> = {
   done: 'FINISHED',
   stopped: 'STOPPED',
   failed: 'FAILED',
-}
-
-const VERB: Record<RunStatus, string> = {
-  running: 'started',
-  done: 'finished',
-  stopped: 'was stopped',
-  failed: 'failed',
 }
 
 // How a finished run ended, with how long it took when that is known.
@@ -713,8 +705,8 @@ export const register: Register = on => {
       )
     }
 
-    // The designer's card comes first. The designer's finished turns show in
-    // the activity only, as the chat already holds them.
+    // The designer's card comes first. The designer's finished turns leave the
+    // pane, as the chat already holds them.
     const team = list.filter(one => one.type !== DESIGNER)
     const running = [
       ...list.filter(one => one.type === DESIGNER && one.status === 'running'),
@@ -746,29 +738,12 @@ export const register: Register = on => {
       )
     }
 
-    // What happened, newest first: each start and end the pane saw, then the
-    // runs that finished before the plugin loaded.
-    const events = list
-      .flatMap(run => [
-        ...(run.seenLate || run.type === DESIGNER ? [] : [{ at: run.startedAt, run, verb: VERB.running }]),
-        ...(run.endedAt !== undefined && run.status !== 'running'
-          ? [{ at: run.endedAt, run, verb: VERB[run.status] }]
-          : []),
-      ])
-      .sort((a, b) => b.at - a.at)
-    const earlier = list.filter(
-      run => run.seenLate && run.status !== 'running' && run.endedAt === undefined,
-    )
-    const activity = [
-      ...events.map(one => ({ when: stamp(one.at, now), run: one.run, verb: one.verb })),
-      ...earlier.reverse().map(run => ({ when: 'EARLIER', run, verb: VERB[run.status] })),
-    ].slice(0, ACTIVITY)
-
     return page(
       band,
-      running.length > 0 && gap('working'),
-      running.length > 0 && <Text bold>WORKING ({running.length})</Text>,
-      running.length > 0 && <Text>{double}</Text>,
+      gap('running'),
+      <Text bold>RUNNING ({running.length})</Text>,
+      <Text>{double}</Text>,
+      running.length === 0 && <Text dimColor>Nothing is running.</Text>,
       ...running.map(run => (
         <Box key={`card-${run.id}`} borderStyle="single" flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
@@ -834,21 +809,6 @@ export const register: Register = on => {
           {finished.length - SHOWN} earlier finished tasks are in the project's history.
         </Text>
       ),
-      gap('activity'),
-      <Text bold>ACTIVITY</Text>,
-      <Text>{double}</Text>,
-      ...activity.map(one => (
-        <Box flexDirection="row">
-          <Box width={LABEL} flexShrink={0}>
-            <Text dimColor>{one.when}</Text>
-          </Box>
-          <Box flexGrow={1} flexShrink={1}>
-            <Text wrap="wrap">
-              {role(one.run.type)} {one.verb}: {one.run.description}
-            </Text>
-          </Box>
-        </Box>
-      )),
       gap('hint'),
       <Text dimColor wrap="wrap">
         Press a task's number to read its brief, its answer and the files it changed.

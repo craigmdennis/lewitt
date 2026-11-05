@@ -172,9 +172,7 @@ test('runs that finished before the plugin loaded show from the main transcript'
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
   expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 4 MIN')
   expect(await ui.find({ type: 'Text', text: /Most accounts/ })).toBeUndefined()
-  expect((await ui.find({ type: 'Text', text: /^RESEARCHER finished/ }))?.text).toBe(
-    'RESEARCHER finished: Credit research',
-  )
+  expect((await ui.find({ type: 'Text', text: /^Credit research$/ }))?.text).toBe('Credit research')
   await ui.unmount()
 })
 
@@ -219,7 +217,7 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
+    expect((await ui.find({ type: 'Text', text: /^RUNNING/ }))?.text).toBe('RUNNING (1)')
     expect((await ui.find({ type: 'Text', text: /^Editing/ }))?.text).toBe('Editing Toast.mdx')
     // A file link is a link on the terminal and plain text where a surface
     // takes only https links.
@@ -284,7 +282,7 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   await ui.unmount()
 })
 
-test("the designer's own turn shows as a card, then in the activity", async ($, on) => {
+test("the designer's own turn shows as a card while it runs", async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
@@ -304,7 +302,7 @@ test("the designer's own turn shows as a card, then in the activity", async ($, 
   })
 
   let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
+  expect((await ui.find({ type: 'Text', text: /^RUNNING/ }))?.text).toBe('RUNNING (1)')
   expect((await ui.find({ type: 'Text', text: /^DESIGNER$/ }))?.text).toBe('DESIGNER')
   expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
     'Make the usage bar amber at 80%.',
@@ -322,10 +320,9 @@ test("the designer's own turn shows as a card, then in the activity", async ($, 
   })
 
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^WORKING/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: /^RUNNING/ }))?.text).toBe('RUNNING (0)')
+  expect((await ui.find({ type: 'Text', text: /^Nothing is running/ }))?.text).toBe('Nothing is running.')
   expect(await ui.find({ type: 'Text', text: /^FINISHED \(/ })).toBeUndefined()
-  expect((await ui.find({ type: 'Text', text: /^DESIGNER finished/ }))?.text).toBe(
-    'DESIGNER finished: Make the usage bar amber at 80%.',
-  )
+  expect(await ui.find({ type: 'Text', text: /^DESIGNER/ })).toBeUndefined()
   await ui.unmount()
 })
