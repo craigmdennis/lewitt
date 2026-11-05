@@ -1,16 +1,23 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { AgentInfo, EngineInterface, Register } from 'claude-code'
 
 import type { Run, RunStatus } from '../types'
 
 const PANE = 'now-view'
 const TITLE = 'Now'
-// Change the tag when a run's fields change: it declines what an earlier
-// version stored, which outlives a reload.
+const RECENT = 3
+const LABEL = 9
+// Change the tag when a run's fields change in a way an earlier value cannot
+// meet: it declines what an earlier version stored, which outlives a reload.
+// The fields added since runs-1 are optional, so its values still read.
 const runs = atom({ plugin: 'now-view', key: 'runs' } as const, [], {
   shape: 'runs-1',
 })
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
+
+// The ids already looked up in the session's agent list, so a run the list
+// does not hold, such as a workflow's, is looked up once.
+const looked = new Set<string>()
 
 // The tool's name and the one input field that says what it is doing.
 function describeTool(e: { tool: string }): string {
@@ -32,20 +39,26 @@ function clockTime(ms: number): string {
 function duration(ms: number): string {
   const minutes = Math.round(ms / 60000)
 
-  return minutes < 1 ? `${Math.round(ms / 1000)}s` : `${minutes}m`
+  return minutes < 1 ? `${Math.round(ms / 1000)} SEC` : `${minutes} MIN`
 }
 
 function toolCalls(count: number): string {
-  return count === 1 ? '1 tool call' : `${count} tool calls`
+  return count === 1 ? '1 CALL' : `${count} CALLS`
 }
 
-// How a finished run ended, for its row and its detail line.
-function outcome(run: Run): string {
-  const took = run.endedAt ? duration(run.endedAt - run.startedAt) : ''
-  if (run.status === 'done') return took ? `Finished in ${took}` : 'Finished'
-  const verb = run.status === 'stopped' ? 'Stopped' : 'Failed'
+const STATUS: Record<RunStatus, string> = {
+  running: 'RUNNING',
+  done: 'FINISHED',
+  stopped: 'STOPPED',
+  failed: 'FAILED',
+}
 
-  return took ? `${verb} after ${took}` : verb
+// How a finished run ended. A run seen late has no true start, so no duration.
+function outcome(run: Run): string {
+  if (!run.endedAt || run.seenLate) return STATUS[run.status]
+  const took = duration(run.endedAt - run.startedAt)
+
+  return run.status === 'done' ? `FINISHED IN ${took}` : `${STATUS[run.status]} AFTER ${took}`
 }
 
 const NO_ANSWER: Record<RunStatus, string> = {
@@ -55,17 +68,77 @@ const NO_ANSWER: Record<RunStatus, string> = {
   failed: 'No answer. The task failed before it finished.',
 }
 
+function statusOf(agent: AgentInfo): RunStatus {
+  if (agent.status === 'completed') return 'done'
+  if (agent.status === 'failed') return 'failed'
+  if (agent.status === 'killed') return 'stopped'
+
+  return 'running'
+}
+
+// A run that started before the plugin loaded: its record from the session's
+// agent list, and its brief, tool calls and answer from its transcript.
+async function adopt($: EngineInterface, agent: AgentInfo): Promise<void> {
+  const found = await $.session.messages({ agentId: agent.id })
+  const messages = Array.isArray(found) ? found : []
+  const uses = messages.flatMap(one => (one.role === 'assistant' ? one.toolUses : []))
+  const calls = uses.map(use => describeTool({ ...use.input, tool: use.tool }))
+  const status = statusOf(agent)
+  const now = await $.clock.now()
+  const run: Run = {
+    id: agent.id,
+    type: agent.type,
+    description: agent.description,
+    brief: messages.find(one => one.role === 'user')?.text ?? '',
+    status,
+    lastTool: calls.at(-1),
+    recent: calls.slice(-RECENT - 1, -1),
+    toolCount: calls.length,
+    startedAt: now,
+    seenLate: true,
+    endedAt: status === 'running' ? undefined : now,
+    answer:
+      status === 'running'
+        ? undefined
+        : messages.filter(one => one.role === 'assistant' && one.text).at(-1)?.text,
+  }
+  await update($, runs, list =>
+    list.some(one => one.id === run.id) ? list : [...list, run].slice(-100),
+  )
+}
+
+// Adds every agent of the session the pane does not list yet.
+async function catchUp($: EngineInterface): Promise<void> {
+  const known = new Set((await read($, runs)).map(one => one.id))
+  for (const agent of await $.agent.list()) {
+    looked.add(agent.id)
+    if (!known.has(agent.id)) await adopt($, agent)
+  }
+}
+
+// Adds the run behind an event from an agent the pane does not list yet.
+async function seen($: EngineInterface, id: string): Promise<void> {
+  if (looked.has(id)) return
+  looked.add(id)
+  if ((await read($, runs)).some(one => one.id === id)) return
+  const agent = (await $.agent.list()).find(one => one.id === id)
+  if (agent) await adopt($, agent)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'now',
       description: 'Show the subagent runs of this session in a pane',
     })
+    // A reload runs session.start again, with the session's agents still working.
+    await catchUp($)
 
     return next(e)
   })
 
   on('command.run', { command: 'now' }, async $ => {
+    await catchUp($)
     await $.ui.open({ id: PANE, title: TITLE })
 
     return { text: 'Now pane opened.' }
@@ -75,6 +148,7 @@ export const register: Register = on => {
     const started = await next(e)
     if (started.deny !== undefined || started.agentId === undefined) return started
 
+    looked.add(started.agentId)
     const run: Run = {
       id: started.agentId,
       type: e.subagentType,
@@ -94,6 +168,7 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     if (e.agentId !== undefined) {
       const id = e.agentId
+      await seen($, id)
       await update($, runs, list =>
         list.map((one): Run =>
           one.id === id && one.status !== 'running'
@@ -109,10 +184,18 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined) {
       const id = e.agentId
+      await seen($, id)
       const lastTool = describeTool(e)
       await update($, runs, list =>
         list.map(one =>
-          one.id === id ? { ...one, lastTool, toolCount: one.toolCount + 1 } : one,
+          one.id === id
+            ? {
+                ...one,
+                lastTool,
+                recent: one.lastTool ? [...(one.recent ?? []), one.lastTool].slice(-RECENT) : one.recent,
+                toolCount: one.toolCount + 1,
+              }
+            : one,
         ),
       )
     }
@@ -123,6 +206,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId !== undefined) {
       const id = e.agentId
+      await seen($, id)
       const status: RunStatus =
         e.reason === 'answer' ? 'done' : e.reason === 'aborted' ? 'stopped' : 'failed'
       const endedAt = await $.clock.now()
@@ -141,34 +225,88 @@ export const register: Register = on => {
     const list = await read($, runs)
     const openId = await read($, selected)
     const open = list.find(one => one.id === openId)
+    const now = await $.clock.now()
+    const width = Math.max(20, e.props.bodyColumns)
+    const double = '═'.repeat(width)
+    const single = '─'.repeat(width)
+
+    // One label and value row, as in a printed manual's specification table.
+    const field = (label: string, value: string, dim = false) => (
+      <Box flexDirection="row">
+        <Box width={LABEL} flexShrink={0}>
+          <Text dimColor>{label}</Text>
+        </Box>
+        <Text dimColor={dim} wrap="truncate-end">
+          {value}
+        </Text>
+      </Box>
+    )
+
+    const started = (run: Run) =>
+      run.seenLate
+        ? `${clockTime(run.startedAt)}, FIRST SEEN. STARTED EARLIER`
+        : run.status === 'running'
+          ? `${clockTime(run.startedAt)}, ${duration(now - run.startedAt)} AGO`
+          : clockTime(run.startedAt)
 
     if (open) {
-      const meta =
-        open.status === 'running'
-          ? `Working since ${clockTime(open.startedAt)}, ${toolCalls(open.toolCount)} so far`
-          : `${outcome(open)}, started ${clockTime(open.startedAt)}, ${toolCalls(open.toolCount)}`
-
       return (
         <Box flexDirection="column">
-          <Button key="back" hotkey="b" onPress={() => update($, selected, () => null)}>
-            Back to the list
-          </Button>
-          <Text bold>
-            {open.type}: {open.description}
-          </Text>
-          <Text dimColor>{meta}</Text>
-          {open.lastTool && <Text dimColor>Latest tool call: {open.lastTool}</Text>}
-          <Text bold>Brief from the designer</Text>
-          <Markdown text={open.brief} />
-          <Text bold>Answer to the designer</Text>
+          <Box flexDirection="row" justifyContent="space-between">
+            <Button key="back" hotkey="b" onPress={() => update($, selected, () => null)}>
+              Back to the list
+            </Button>
+            <Button key="transcript" hotkey="t" onPress={() => $.ui.view({ agentId: open.id })}>
+              Open its transcript
+            </Button>
+          </Box>
+          <Box borderStyle="double" flexDirection="column" paddingX={1} marginTop={1}>
+            <Text bold>{open.type.toUpperCase()}</Text>
+            <Text>{open.description}</Text>
+          </Box>
+          {field('STATUS', open.status === 'running' ? 'RUNNING' : outcome(open))}
+          {field('STARTED', started(open))}
+          {field('TOOLS', toolCalls(open.toolCount))}
+          {open.lastTool && field('LATEST', open.lastTool)}
+          <Text>{double}</Text>
+          <Text bold>BRIEF FROM THE DESIGNER</Text>
+          <Text dimColor>{single}</Text>
+          {open.brief ? <Markdown text={open.brief} /> : <Text dimColor>No brief was recorded.</Text>}
+          <Text>{double}</Text>
+          <Text bold>ANSWER TO THE DESIGNER</Text>
+          <Text dimColor>{single}</Text>
           {open.answer ? <Markdown text={open.answer} /> : <Text dimColor>{NO_ANSWER[open.status]}</Text>}
         </Box>
       )
     }
 
+    const running = list.filter(one => one.status === 'running')
+    const finished = list.filter(one => one.status !== 'running').reverse()
+    const order = [...running, ...finished]
+    const hotkey = (run: Run) => {
+      const index = order.indexOf(run)
+
+      return index < 9 ? String(index + 1) : undefined
+    }
+    const mark = (run: Run) => (hotkey(run) ? `[${hotkey(run)}] ` : '')
+
+    const header = (
+      <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
+        <Box flexDirection="column">
+          <Text bold>NOW</Text>
+          <Text>SUB-AGENT TASKS</Text>
+        </Box>
+        <Box flexDirection="column" alignItems="flex-end">
+          <Text>{running.length} WORKING</Text>
+          <Text>{finished.length} FINISHED</Text>
+        </Box>
+      </Box>
+    )
+
     if (list.length === 0) {
       return (
         <Box flexDirection="column">
+          {header}
           <Text bold>No sub-agent tasks yet</Text>
           <Text>
             When the designer gives a task to a sub-agent, such as the copywriter or the researcher,
@@ -179,34 +317,52 @@ export const register: Register = on => {
       )
     }
 
-    const running = list.filter(one => one.status === 'running')
-    const finished = list.filter(one => one.status !== 'running').reverse()
-
     return (
       <Box flexDirection="column">
-        <Text dimColor>
-          Tasks the designer gave to sub-agents in this session. Select one to read its brief and
-          answer.
-        </Text>
-        {running.length > 0 && <Text bold>Working ({running.length})</Text>}
+        {header}
+        {running.length > 0 && <Text bold>WORKING ({running.length})</Text>}
+        {running.length > 0 && <Text>{double}</Text>}
         {running.map(run => (
-          <Box key={run.id} flexDirection="column">
-            <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
-              {run.type}: {run.description}{' '}
-              <Text dimColor>since {clockTime(run.startedAt)}</Text>
-            </Button>
-            <Text dimColor>
-              {'  '}
-              {run.lastTool ? `Now: ${run.lastTool}` : 'Starting'}
-            </Text>
+          <Box key={`card-${run.id}`} borderStyle="single" flexDirection="column" paddingX={1}>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
+                <Text bold>
+                  {mark(run)}
+                  {run.type.toUpperCase()}
+                </Text>
+              </Button>
+              <Text inverse> RUNNING </Text>
+            </Box>
+            <Text>{run.description}</Text>
+            <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
+            {field('STARTED', started(run))}
+            {field('TOOLS', toolCalls(run.toolCount))}
+            {field('NOW', run.lastTool ?? 'Starting')}
+            {(run.recent ?? [])
+              .slice()
+              .reverse()
+              .map((call, index) => field(index === 0 ? 'BEFORE' : '', call, true))}
           </Box>
         ))}
-        {finished.length > 0 && <Text bold>Finished ({finished.length})</Text>}
+        {finished.length > 0 && <Text bold>FINISHED ({finished.length})</Text>}
+        {finished.length > 0 && <Text>{double}</Text>}
         {finished.map(run => (
-          <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
-            {run.type}: {run.description} <Text dimColor>{outcome(run).toLowerCase()}</Text>
-          </Button>
+          <Box key={`row-${run.id}`} flexDirection="column">
+            <Box flexDirection="row" justifyContent="space-between">
+              <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
+                {mark(run)}
+                {run.type.toUpperCase()}
+              </Button>
+              <Text dimColor>{outcome(run)}</Text>
+            </Box>
+            <Text dimColor>
+              {'    '}
+              {run.description}
+            </Text>
+            <Text dimColor>{single}</Text>
+          </Box>
         ))}
+        <Text dimColor>Press a task's number to read its brief and answer.</Text>
       </Box>
     )
   })

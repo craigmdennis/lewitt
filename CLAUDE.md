@@ -158,7 +158,7 @@ Read each guide once in a session, when the work needs it:
 
 ## The Now view
 
-The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane: working runs with their latest tool call, and finished runs with their time. Selecting a run shows its brief and its answer. The pane opens when a sub-agent starts, and `/now` opens it at any time.
+The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane: a card for each working run with its latest tool calls, and a row for each finished run with its time. A run's number opens its brief and its answer, and `t` opens its transcript. The pane opens when a sub-agent starts, and `/now` opens it at any time.
 
 `.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
 
@@ -177,7 +177,7 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
    ```
 
    Run `claude plugin list` again, and check that `now-view@lewitt` shows as enabled.
-4. Ask the design lead to type `/reload-plugins`, then `/now`, each as its own message. A slash command opens its own prompt, so two commands pasted together fail. The session loads the plugin only at `/reload-plugins`, and the pane lists only the sub-agents that start after it.
+4. Ask the design lead to type `/reload-plugins`, then `/now`, each as its own message. A slash command opens its own prompt, so two commands pasted together fail. The session loads the plugin only at `/reload-plugins`. The pane then lists the sub-agents already working, from their next tool call.
 5. Wait for the design lead to say the pane opened. Start no sub-agent before then. If it does not open, report it, and ask whether to start the project without it.
 6. If the design lead says no to the install, start the project without it, and ask again at the next project.
 

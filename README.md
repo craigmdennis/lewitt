@@ -38,9 +38,9 @@ Two hooks hold each sub-agent to its column:
 
 `plugins/now-view/` is a Claude Code mod. It adds a pane beside the chat:
 
-- **Working:** each running sub-agent, its task, when it started and its latest tool call.
-- **Finished:** each finished sub-agent, whether it finished, stopped or failed, and how long it took.
-- Selecting a run shows its brief and its answer. `b` returns to the list.
+- **Working:** a card for each running sub-agent: its role, its task, when it started, its number of tool calls, its latest tool call and the three before it.
+- **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, and how long it took.
+- A run's number opens it: its status, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
 
 The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the runs of the current session. The terminal's font is the pane's font.
 
@@ -70,7 +70,7 @@ To install it, run each command on its own, in this order.
    /now
    ```
 
-The pane lists only the sub-agents that start after `/reload-plugins`.
+The pane also lists the sub-agents that started before `/reload-plugins`, from their next tool call or from `/now`. For those runs it shows the time it first saw them, because their start time is not recorded.
 
 Run its test with `claude plugin test plugins/now-view`.
 

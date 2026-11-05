@@ -17,6 +17,8 @@ const PANE = {
 test('the empty pane says what will appear', async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -34,6 +36,7 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
   on('command.register', () => ({ value: { command: 'now' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
   on('tool.call', () => ({ result: {} }))
   on('turn.complete', () => ({ text: '' }))
@@ -45,12 +48,15 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     description: 'Toast copy',
     subagentType: 'copywriter',
   })
+  await $.tool.call({ tool: 'Bash', command: 'rg toast', agentId: 'a1' })
   await $.tool.call({ tool: 'Read', file_path: '/repo/Toast.mdx', agentId: 'a1' })
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /^Working/ }))?.text).toBe('Working (1)')
-    expect((await ui.find({ type: 'Text', text: /Now: Read/ }))?.text).toContain('Read: /repo/Toast.mdx')
+    expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
+    expect((await ui.find({ type: 'Text', text: /^Read: / }))?.text).toBe('Read: /repo/Toast.mdx')
+    expect((await ui.find({ type: 'Text', text: /^Bash: / }))?.text).toBe('Bash: rg toast')
+    expect((await ui.find({ type: 'Text', text: /CALLS$/ }))?.text).toBe('2 CALLS')
     await ui.unmount()
   }
 
@@ -64,9 +70,44 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
   })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^Finished/ }))?.text).toBe('Finished (1)')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
   await ui.press({ key: 'a1' })
-  expect((await ui.find({ type: 'Text', text: /^Brief/ }))?.text).toBe('Brief from the designer')
-  expect((await ui.find({ type: 'Text', text: /^Finished in/ }))?.text).toContain('1 tool call')
+  expect((await ui.find({ type: 'Text', text: /^BRIEF/ }))?.text).toBe('BRIEF FROM THE DESIGNER')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED IN/ }))?.text).toBe('FINISHED IN 0 SEC')
+  await ui.unmount()
+})
+
+test('a run that started before the plugin loaded shows at its next tool call', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({
+    value: [
+      { id: 'a9', description: 'Codebase report', type: 'frontend-engineer', status: 'running' },
+    ],
+  }))
+  on('session.messages', () => ({
+    value: [
+      { role: 'user', text: 'Write the codebase report.', toolUses: [] },
+      {
+        role: 'assistant',
+        text: '',
+        toolUses: [{ tool_use_id: 'u1', tool: 'Glob', input: { pattern: '**/*.ts' } }],
+      },
+    ],
+  }))
+  on('tool.call', () => ({ result: {} }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  // The agent was not in the list at session.start, as before a reload.
+  await $.tool.call({ tool: 'Read', file_path: '/repo/billing.py', agentId: 'a9' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^Read: / }))?.text).toBe('Read: /repo/billing.py')
+  expect((await ui.find({ type: 'Text', text: /^Glob: / }))?.text).toBe('Glob: **/*.ts')
+  expect((await ui.find({ type: 'Text', text: /STARTED EARLIER/ }))?.text).toContain('FIRST SEEN')
+  await ui.press({ key: 'a9' })
+  expect((await ui.find({ type: 'Markdown', text: /codebase report/ }))?.text).toBe(
+    'Write the codebase report.',
+  )
   await ui.unmount()
 })
