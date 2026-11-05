@@ -168,6 +168,11 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
 
    ```sh
    claude plugin marketplace add craigmdennis/lewitt
+   ```
+
+   Then install the plugin:
+
+   ```sh
    claude plugin install now-view@lewitt
    ```
 
