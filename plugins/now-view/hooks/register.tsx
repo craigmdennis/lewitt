@@ -15,8 +15,6 @@ const SHOWN = 12
 const HISTORY = 100
 const KEPT = 4000
 const LABEL = 9
-// The designer's latest requests the pane keeps, in this chat only.
-const DESIGNER_KEPT = 5
 const DESIGNER = 'designer'
 // Change the tag when a run's fields change in a way an earlier value cannot
 // meet: it declines what an earlier version stored, which outlives a reload.
@@ -157,6 +155,20 @@ function fixedLines(text: string, columns: number, count: number): string[] {
   while (lines.length < count) lines.push('')
 
   return lines
+}
+
+// Whether a designer turn produced work the chat does not show on its own: a
+// file it changed, a task it gave the team or a question it flagged. Only
+// those turns are kept and listed as finished.
+function produced(run: Run): boolean {
+  return (
+    (run.changed?.length ?? 0) > 0 || (run.spawned?.length ?? 0) > 0 || (run.flagged ?? 0) > 0
+  )
+}
+
+// A list of things in plain words: "a", "a and b", "a, b and c".
+function listed(items: string[]): string {
+  return items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
 }
 
 function firstLine(text: string): string {
@@ -330,7 +342,7 @@ async function save($: EngineInterface): Promise<void> {
   const byId = new Map<string, Run>()
   for (const run of Array.isArray(stored) ? (stored as Run[]) : []) byId.set(run.id, run)
   for (const run of await read($, runs)) {
-    if (run.type === DESIGNER) continue
+    if (run.type === DESIGNER && (run.status === 'running' || !produced(run))) continue
     byId.set(run.id, {
       ...run,
       brief: run.brief.slice(0, KEPT),
@@ -429,7 +441,19 @@ export const register: Register = on => {
       startedAt: await $.clock.now(),
       sessionId,
     }
-    await update($, runs, list => [...list.filter(one => one.id !== run.id), run].slice(-HISTORY))
+    // The designer's turn in progress gave the task.
+    await update($, runs, list =>
+      [
+        ...list
+          .filter(one => one.id !== run.id)
+          .map((one): Run =>
+            one.type === DESIGNER && one.status === 'running'
+              ? { ...one, spawned: [...(one.spawned ?? []), run.id] }
+              : one,
+          ),
+        run,
+      ].slice(-HISTORY),
+    )
     await save($)
     void $.ui.open({ id: PANE, title: TITLE })
 
@@ -458,10 +482,10 @@ export const register: Register = on => {
             ? { ...one, status: 'stopped', endedAt: at }
             : one,
         )
-        const team = closed.filter(one => one.type !== DESIGNER)
-        const designer = closed.filter(one => one.type === DESIGNER).slice(-(DESIGNER_KEPT - 1))
+        // A designer turn that only answered in the chat leaves the pane.
+        const kept = closed.filter(one => one.type !== DESIGNER || produced(one))
 
-        return [...team, ...designer, run]
+        return [...kept, run].slice(-HISTORY)
       })
     } else {
       const id = e.agentId
@@ -487,6 +511,13 @@ export const register: Register = on => {
     const flag: Flag = { id, question, agentId: input.agent_id, at: await $.clock.now() }
     await update($, flags, list => [...list, flag].slice(-HISTORY))
     await saveFlags($)
+    await update($, runs, list =>
+      list.map((one): Run =>
+        one.type === DESIGNER && one.status === 'running'
+          ? { ...one, flagged: (one.flagged ?? 0) + 1 }
+          : one,
+      ),
+    )
     void $.ui.open({ id: PANE, title: TITLE })
     const sent = await $.ui.notify(question, { title: 'Needs you' }).catch(() => undefined)
 
@@ -725,6 +756,10 @@ export const register: Register = on => {
         field('STATUS', open.status === 'running' ? 'IN PROGRESS' : outcome(open)),
         field('STARTED', started(open)),
         ...progress(open),
+        ...(open.spawned ?? [])
+          .map(id => list.find(one => one.id === id))
+          .filter((one): one is Run => one !== undefined)
+          .map((one, index) => field(index === 0 ? 'TASKS' : '', `${role(one.type)}: ${one.description}`)),
         gap('brief'),
         <Text>{double}</Text>,
         <Text bold>{own ? 'YOUR REQUEST' : 'BRIEF FROM THE DESIGNER'}</Text>,
@@ -738,15 +773,15 @@ export const register: Register = on => {
       )
     }
 
-    // The designer's card comes first. The designer's finished turns leave the
-    // pane, as the chat already holds them.
+    // The designer's card comes first. A finished designer turn is listed when
+    // it changed a file, gave the team a task or flagged a question.
     const team = list.filter(one => one.type !== DESIGNER)
     const running = [
       ...list.filter(one => one.type === DESIGNER && one.status === 'running'),
       ...team.filter(one => one.status === 'running'),
     ]
-    const finished = team
-      .filter(one => one.status !== 'running')
+    const finished = list
+      .filter(one => one.status !== 'running' && (one.type !== DESIGNER || produced(one)))
       .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt))
 
     if (list.length === 0) {
@@ -819,6 +854,25 @@ export const register: Register = on => {
           <Box paddingLeft={4}>
             <Text wrap="wrap">{run.description}</Text>
           </Box>
+          {run.type === DESIGNER && (
+            <Box paddingLeft={4}>
+              <Text dimColor wrap="wrap">
+                {listed(
+                  [
+                    run.spawned?.length
+                      ? `${run.spawned.length} ${run.spawned.length === 1 ? 'task' : 'tasks'} for the team`
+                      : '',
+                    run.changed?.length
+                      ? `${run.changed.length} ${run.changed.length === 1 ? 'file' : 'files'} changed`
+                      : '',
+                    run.flagged
+                      ? `${run.flagged} ${run.flagged === 1 ? 'question' : 'questions'} for you`
+                      : '',
+                  ].filter(Boolean),
+                )}
+              </Text>
+            </Box>
+          )}
           {(run.changed ?? [])
             .filter(path => /\.(md|mdx|markdown)$/i.test(path))
             .map(path => (

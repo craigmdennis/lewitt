@@ -298,7 +298,7 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   await ui.unmount()
 })
 
-test("the designer's own turn shows as a card while it runs", async ($, on) => {
+test("the designer's turn shows as a card while it runs, and as finished when it produced work", async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
@@ -306,6 +306,8 @@ test("the designer's own turn shows as a card while it runs", async ($, on) => {
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('tool.call', () => ({ result: {} }))
   on('turn.complete', () => ({ text: '' }))
+  on('agent.spawn', () => ({ model: 'sonnet', agentId: 'c1' }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
   on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -341,10 +343,39 @@ test("the designer's own turn shows as a card while it runs", async ($, on) => {
     reason: 'answer',
   })
 
+  // The turn changed a file, so it is listed as finished.
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^RUNNING/ }))?.text).toBe('RUNNING (0)')
   expect((await ui.find({ type: 'Text', text: /^Nothing is running/ }))?.text).toBe('Nothing is running.')
-  expect(await ui.find({ type: 'Text', text: /^FINISHED \(/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /^DESIGNER/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
+  expect((await ui.find({ type: 'Text', text: /^1 file changed$/ }))?.text).toBe('1 file changed')
+  await ui.unmount()
+
+  // A turn that only answers in the chat is not listed.
+  await $.turn.start({ text: 'Why amber?', turnId: 'm2' })
+  await $.turn.complete({
+    answer: 'Amber is the warning colour.',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 'm2',
+    reason: 'answer',
+  })
+  // A turn that gives the team a task is listed, with the task in its view.
+  await $.turn.start({ text: 'Get copy for the warning.', turnId: 'm3' })
+  await $.agent.spawn({ prompt: 'Write the warning copy.', description: 'Warning copy', subagentType: 'copywriter' })
+  await $.turn.complete({
+    answer: 'The copywriter is on it.',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 'm3',
+    reason: 'answer',
+  })
+
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (2)')
+  expect(await ui.find({ type: 'Text', text: /^Why amber/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: /^1 task for the team$/ }))?.text).toBe('1 task for the team')
+  await ui.press({ key: 'designer-m3' })
+  expect((await ui.find({ type: 'Text', text: /^COPYWRITER: / }))?.text).toBe('COPYWRITER: Warning copy')
   await ui.unmount()
 })

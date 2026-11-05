@@ -22,6 +22,10 @@ export type Run = {
   answer?: string
   // The files the task wrote or edited, in the order it first changed them.
   changed?: string[]
+  // For a designer turn: the tasks it gave the team, and how many questions it
+  // flagged for the design lead.
+  spawned?: string[]
+  flagged?: number
   // The chat the run belongs to, so a later chat in the project lists it as
   // history.
   sessionId?: string
