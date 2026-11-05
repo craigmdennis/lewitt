@@ -309,6 +309,12 @@ test("the designer's own turn shows as a card while it runs", async ($, on) => {
   expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
     'Make the usage bar amber at 80%.',
   )
+  await ui.press({ key: 'designer-m1' })
+  expect((await ui.find({ type: 'Text', text: /^YOUR REQUEST$/ }))?.text).toBe('YOUR REQUEST')
+  expect((await ui.find({ type: 'Text', text: /^ANSWER TO YOU$/ }))?.text).toBe('ANSWER TO YOU')
+  expect(await ui.find({ type: 'Text', text: /^Make the usage/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /DESIGN LEAD/ })).toBeUndefined()
+  await ui.press({ key: 'back' })
   expect((await ui.find({ type: 'Text', text: /^Editing/ }))?.text).toBe('Editing usage.tsx')
   expect((await ui.find({ type: 'Link', text: /usage\.tsx$/ }))?.text).toBe('src/usage.tsx')
   await ui.unmount()

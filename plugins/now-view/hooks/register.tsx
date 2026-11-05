@@ -683,7 +683,8 @@ export const register: Register = on => {
         </Box>,
         <Box borderStyle="double" flexDirection="column" paddingX={1} marginTop={1}>
           <Text bold>{role(open.type)}</Text>
-          <Text wrap="wrap">{open.description}</Text>
+          {/* The designer's task is the request below, so the box names the role alone. */}
+          {!own && <Text wrap="wrap">{open.description}</Text>}
         </Box>,
         ...waiting
           .filter(flag => flag.agentId === open.id)
@@ -693,12 +694,12 @@ export const register: Register = on => {
         ...progress(open),
         gap('brief'),
         <Text>{double}</Text>,
-        <Text bold>{own ? 'REQUEST FROM THE DESIGN LEAD' : 'BRIEF FROM THE DESIGNER'}</Text>,
+        <Text bold>{own ? 'YOUR REQUEST' : 'BRIEF FROM THE DESIGNER'}</Text>,
         <Text dimColor>{single}</Text>,
         open.brief ? <Markdown text={open.brief} /> : <Text dimColor>No brief was recorded.</Text>,
         gap('answer'),
         <Text>{double}</Text>,
-        <Text bold>{own ? 'ANSWER TO THE DESIGN LEAD' : 'ANSWER TO THE DESIGNER'}</Text>,
+        <Text bold>{own ? 'ANSWER TO YOU' : 'ANSWER TO THE DESIGNER'}</Text>,
         <Text dimColor>{single}</Text>,
         open.answer ? <Markdown text={open.answer} /> : <Text dimColor>{NO_ANSWER[open.status]}</Text>,
       )
