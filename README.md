@@ -98,4 +98,12 @@ A change to the way of working, made during a product project, comes to this rep
 
 ## Starting a project
 
-Open Claude Code in this repository and describe the project. The designer asks before creating the project's worktree of the app repository, then writes `project.md` in its `.lewitt-run/` folder and asks the design lead to approve the scope before anything else.
+Open Claude Code in this repository, and describe the project in the first message. For example:
+
+> New project: let people save a search as a filter they can reuse. The issue is <link>, and my sketch is in <link>.
+
+The first message can give the problem, the core flow, links to existing work, whether the prototype is standalone or in code, and any sketches. The designer asks for each part the message leaves out, one question at a time. With no project in mind yet, "Start a new project" works too.
+
+The designer runs the project-start checks in `CLAUDE.md`, asks before creating the project's worktree of the app repository, then writes `project.md` in its `.lewitt-run/` folder and asks the design lead to approve the scope.
+
+The Now view opens by itself when the first sub-agent starts. Run `/now` to open it earlier, or to open it again after closing it.
