@@ -44,12 +44,15 @@ Two hooks hold each sub-agent to its column:
 
 The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the runs of the current session. The terminal's font is the pane's font.
 
-Install it from this repository:
+Install it from this repository, then reload the session's plugins:
 
 ```
 /plugin marketplace add craigmdennis/lewitt
 /plugin install now-view@lewitt
+/reload-plugins
 ```
+
+The pane lists only the sub-agents that start after `/reload-plugins`. Run `/now` to check that the pane opens.
 
 Run its test with `claude plugin test plugins/now-view`.
 

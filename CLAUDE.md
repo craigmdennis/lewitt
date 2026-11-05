@@ -164,14 +164,17 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
 
 1. Run `claude plugin list`, and look for `now-view@lewitt` with the status enabled.
 2. If it is missing or disabled, ask the design lead whether to install it, and wait for the answer.
-3. If the design lead says yes, give these two commands to run in this session, then `/reload-plugins`:
+3. If the design lead says yes, give these three commands to run in this session, in this order:
 
    ```
    /plugin marketplace add craigmdennis/lewitt
    /plugin install now-view@lewitt
+   /reload-plugins
    ```
 
-4. If the design lead says no, start the project without it, and ask again at the next project.
+   The session loads the plugin only at `/reload-plugins`, and the pane lists only the sub-agents that start after it.
+4. Ask the design lead to run `/now` and say whether the pane opened. Start no sub-agent until the pane opens. If it does not open, report it, and ask whether to start the project without it.
+5. If the design lead says no to the install, start the project without it, and ask again at the next project.
 
 ## Data and privacy
 
