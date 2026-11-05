@@ -42,7 +42,7 @@ Two hooks hold each sub-agent to its column:
 - **Running:** a card for each task in progress, or "Nothing is running.": the team member's role, the task, a turning mark with the time since the task started, what it is doing now in plain words, and a link to each file it changed. The NOW line is the description the team member gave its latest step, or what that step does to which file. While the designer works on a request in the chat, the DESIGNER card comes first, with the request as its task.
 - **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, how long it took, the task, and a link to each Markdown file it wrote, such as a review or a report.
 - The footer, at the bottom of the pane, shows the version. A copy made from a checkout also shows LOCAL with the commit it came from.
-- A run's number opens it: its status, the files it changed, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
+- Selecting a task opens it: its status, the files it changed, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
 
 The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
 

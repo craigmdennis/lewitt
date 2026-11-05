@@ -715,13 +715,6 @@ export const register: Register = on => {
     const finished = team
       .filter(one => one.status !== 'running')
       .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt))
-    const order = [...running, ...finished]
-    // The Button draws its hotkey before its label.
-    const hotkey = (run: Run) => {
-      const index = order.indexOf(run)
-
-      return index < 9 ? String(index + 1) : undefined
-    }
 
     if (list.length === 0) {
       return page(
@@ -747,7 +740,7 @@ export const register: Register = on => {
       ...running.map(run => (
         <Box key={`card-${run.id}`} borderStyle="single" flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
+            <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
               <Text bold wrap="wrap">
                 {role(run.type)}
               </Text>
@@ -773,7 +766,7 @@ export const register: Register = on => {
       ...finished.slice(0, SHOWN).map(run => (
         <Box key={`row-${run.id}`} flexDirection="column">
           <Box flexDirection="row" justifyContent="space-between">
-            <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
+            <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
               {role(run.type)}
             </Button>
             <Box flexShrink={0} marginLeft={1}>
@@ -811,7 +804,7 @@ export const register: Register = on => {
       ),
       gap('hint'),
       <Text dimColor wrap="wrap">
-        Press a task's number to read its brief, its answer and the files it changed.
+        Select a task to read its brief, its answer and the files it changed.
       </Text>,
     )
   })
