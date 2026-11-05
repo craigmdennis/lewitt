@@ -14,6 +14,9 @@ const SHOWN = 12
 const HISTORY = 100
 const KEPT = 4000
 const LABEL = 9
+// The designer's latest requests the pane keeps, in this chat only.
+const DESIGNER_KEPT = 5
+const DESIGNER = 'designer'
 // Change the tag when a run's fields change in a way an earlier value cannot
 // meet: it declines what an earlier version stored, which outlives a reload.
 // The fields added since runs-1 are optional, so its values still read.
@@ -43,7 +46,8 @@ const ROLE: Record<string, string> = {
   copywriter: 'COPYWRITER',
   researcher: 'RESEARCHER',
   'frontend-engineer': 'FRONT-END ENGINEER',
-  fork: 'SECOND DESIGNER',
+  [DESIGNER]: 'DESIGNER',
+  fork: 'DESIGN PARTNER',
   'general-purpose': 'TEAM MEMBER',
   Explore: 'RESEARCH ASSISTANT',
   Plan: 'PLANNER',
@@ -124,6 +128,20 @@ function outcome(run: Run): string {
   if (took === undefined) return STATUS[run.status]
 
   return run.status === 'done' ? `FINISHED IN ${duration(took)}` : `${STATUS[run.status]} AFTER ${duration(took)}`
+}
+
+// What the designer is working on, from the text that started its turn: the
+// design lead's request, or a team member's answer the designer reads.
+function request(text: string): string {
+  if (!text.trim()) return 'Continuing its work'
+  if (text.includes('<task-notification')) {
+    const summary = /<summary>([\s\S]*?)<\/summary>/.exec(text)?.[1]?.trim()
+
+    return summary ? `Reading a result: ${summary}` : "Reading a team member's answer"
+  }
+  const line = firstLine(text)
+
+  return line.length > 120 ? `${line.slice(0, 119)}…` : line
 }
 
 const NO_ANSWER: Record<RunStatus, string> = {
@@ -259,6 +277,7 @@ async function save($: EngineInterface): Promise<void> {
   const byId = new Map<string, Run>()
   for (const run of Array.isArray(stored) ? (stored as Run[]) : []) byId.set(run.id, run)
   for (const run of await read($, runs)) {
+    if (run.type === DESIGNER) continue
     byId.set(run.id, {
       ...run,
       brief: run.brief.slice(0, KEPT),
@@ -359,9 +378,34 @@ export const register: Register = on => {
     return started
   })
 
-  // A run that SendMessage wakes again starts a new turn under the same id.
+  // A run that SendMessage wakes again starts a new turn under the same id. A
+  // turn on the main loop is the designer's own work.
   on('turn.start', async ($, e, next) => {
-    if (e.agentId !== undefined) {
+    if (e.agentId === undefined) {
+      const at = await $.clock.now()
+      const run: Run = {
+        id: `${DESIGNER}-${e.turnId}`,
+        type: DESIGNER,
+        description: request(e.text),
+        brief: e.text,
+        status: 'running',
+        toolCount: 0,
+        startedAt: at,
+        sessionId,
+      }
+      await update($, runs, list => {
+        // A turn that ended without turn.complete, as at a reload, is over.
+        const closed = list.map((one): Run =>
+          one.type === DESIGNER && one.status === 'running'
+            ? { ...one, status: 'stopped', endedAt: at }
+            : one,
+        )
+        const team = closed.filter(one => one.type !== DESIGNER)
+        const designer = closed.filter(one => one.type === DESIGNER).slice(-(DESIGNER_KEPT - 1))
+
+        return [...team, ...designer, run]
+      })
+    } else {
       const id = e.agentId
       await seen($, id)
       await update($, runs, list =>
@@ -407,41 +451,40 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
-    if (e.agentId !== undefined) {
-      const id = e.agentId
-      await seen($, id)
-      const lastTool = describeTool(e)
-      await update($, runs, list =>
-        list.map(one =>
-          one.id === id
-            ? {
-                ...one,
-                lastTool,
-                recent: one.lastTool ? [...(one.recent ?? []), one.lastTool].slice(-RECENT) : one.recent,
-                toolCount: one.toolCount + 1,
-              }
-            : one,
-        ),
-      )
-    }
+    const id = e.agentId
+    if (id !== undefined) await seen($, id)
+    const lastTool = describeTool(e)
+    // A main-loop call belongs to the designer's turn in progress.
+    const mine = (one: Run) =>
+      id !== undefined ? one.id === id : one.type === DESIGNER && one.status === 'running'
+    await update($, runs, list =>
+      list.map(one =>
+        mine(one)
+          ? {
+              ...one,
+              lastTool,
+              recent: one.lastTool ? [...(one.recent ?? []), one.lastTool].slice(-RECENT) : one.recent,
+              toolCount: one.toolCount + 1,
+            }
+          : one,
+      ),
+    )
 
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId !== undefined) {
-      const id = e.agentId
-      await seen($, id)
-      const status: RunStatus =
-        e.reason === 'answer' ? 'done' : e.reason === 'aborted' ? 'stopped' : 'failed'
-      const endedAt = await $.clock.now()
-      await update($, runs, list =>
-        list.map(one =>
-          one.id === id ? { ...one, status, endedAt, answer: e.answer } : one,
-        ),
-      )
-      await save($)
-    }
+    const id = e.agentId
+    if (id !== undefined) await seen($, id)
+    const status: RunStatus =
+      e.reason === 'answer' ? 'done' : e.reason === 'aborted' ? 'stopped' : 'failed'
+    const endedAt = await $.clock.now()
+    const mine = (one: Run) =>
+      id !== undefined ? one.id === id : one.type === DESIGNER && one.status === 'running'
+    await update($, runs, list =>
+      list.map(one => (mine(one) ? { ...one, status, endedAt, answer: e.answer } : one)),
+    )
+    if (id !== undefined) await save($)
 
     return next(e)
   })
@@ -566,14 +609,19 @@ export const register: Register = on => {
           : clockTime(run.startedAt)
 
     if (open) {
+      // The designer's turn is the chat itself, with no transcript of its own.
+      const own = open.type === DESIGNER
+
       return page(
         <Box flexDirection="row" justifyContent="space-between">
           <Button key="back" hotkey="b" onPress={() => update($, selected, () => null)}>
             Back to the list
           </Button>
-          <Button key="transcript" hotkey="t" onPress={() => $.ui.view({ agentId: open.id })}>
-            Open its transcript
-          </Button>
+          {!own && (
+            <Button key="transcript" hotkey="t" onPress={() => $.ui.view({ agentId: open.id })}>
+              Open its transcript
+            </Button>
+          )}
         </Box>,
         <Box borderStyle="double" flexDirection="column" paddingX={1} marginTop={1}>
           <Text bold>{role(open.type)}</Text>
@@ -588,29 +636,35 @@ export const register: Register = on => {
         open.lastTool && field('LATEST', open.lastTool),
         gap('brief'),
         <Text>{double}</Text>,
-        <Text bold>BRIEF FROM THE DESIGNER</Text>,
+        <Text bold>{own ? 'REQUEST FROM THE DESIGN LEAD' : 'BRIEF FROM THE DESIGNER'}</Text>,
         <Text dimColor>{single}</Text>,
         open.brief ? <Markdown text={open.brief} /> : <Text dimColor>No brief was recorded.</Text>,
         gap('answer'),
         <Text>{double}</Text>,
-        <Text bold>ANSWER TO THE DESIGNER</Text>,
+        <Text bold>{own ? 'ANSWER TO THE DESIGN LEAD' : 'ANSWER TO THE DESIGNER'}</Text>,
         <Text dimColor>{single}</Text>,
         open.answer ? <Markdown text={open.answer} /> : <Text dimColor>{NO_ANSWER[open.status]}</Text>,
       )
     }
 
-    const running = list.filter(one => one.status === 'running')
-    const finished = list
+    // The designer's card comes first. The designer's finished turns show in
+    // the activity only, as the chat already holds them.
+    const team = list.filter(one => one.type !== DESIGNER)
+    const running = [
+      ...list.filter(one => one.type === DESIGNER && one.status === 'running'),
+      ...team.filter(one => one.status === 'running'),
+    ]
+    const finished = team
       .filter(one => one.status !== 'running')
       .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt))
     const order = [...running, ...finished]
+    // The Button draws its hotkey before its label.
     const hotkey = (run: Run) => {
       const index = order.indexOf(run)
 
       return index < 9 ? String(index + 1) : undefined
     }
-    const mark = (run: Run) => (hotkey(run) ? `[${hotkey(run)}] ` : '')
-    const calls = list.reduce((sum, one) => sum + one.toolCount, 0)
+    const calls = team.reduce((sum, one) => sum + one.toolCount, 0)
 
     const header = (
       <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
@@ -647,7 +701,7 @@ export const register: Register = on => {
     // runs that finished before the plugin loaded.
     const events = list
       .flatMap(run => [
-        ...(run.seenLate ? [] : [{ at: run.startedAt, run, verb: VERB.running }]),
+        ...(run.seenLate || run.type === DESIGNER ? [] : [{ at: run.startedAt, run, verb: VERB.running }]),
         ...(run.endedAt !== undefined && run.status !== 'running'
           ? [{ at: run.endedAt, run, verb: VERB[run.status] }]
           : []),
@@ -672,7 +726,6 @@ export const register: Register = on => {
           <Box flexDirection="row" justifyContent="space-between">
             <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
               <Text bold wrap="wrap">
-                {mark(run)}
                 {role(run.type)}
               </Text>
             </Button>
@@ -704,7 +757,6 @@ export const register: Register = on => {
         <Box key={`row-${run.id}`} flexDirection="column">
           <Box flexDirection="row" justifyContent="space-between">
             <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
-              {mark(run)}
               {role(run.type)}
             </Button>
             <Box flexShrink={0} marginLeft={1}>

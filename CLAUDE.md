@@ -47,7 +47,7 @@ The pre-commit check in `.githooks/` blocks a commit that adds a term from `note
 | Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
 | Researcher | Sub-agent `researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
-| Designer fork | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
+| Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned. Until it exists, the front-end engineer reports backend limits in the codebase report and builds on stubs.
 
@@ -106,7 +106,7 @@ Start each sub-agent with the Agent tool. Run sub-agents that do not depend on e
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
 - **Front-end engineer.** The brief names one task: codebase report, state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version.
-- **Designer fork.** Use a fork for a second option or a separate exploration. The brief names the files it may write.
+- **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.
 
 A sub-agent's answer comes back into this session. Keep the brief to what the task needs, and point at files instead of pasting them.
 
@@ -159,7 +159,7 @@ Read each guide once in a session, when the work needs it:
 
 ## The Now view
 
-The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane: a card for each working run with its latest tool calls, and a row for each finished run with its time. A run's number opens its brief and its answer, and `t` opens its transcript. The pane opens when a sub-agent starts, and `/now` opens it at any time.
+The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane: a card for each task in progress with its latest tool calls, the designer's own card while a request is in progress, and a row for each finished task with its time. A run's number opens its brief and its answer, and `t` opens its transcript. The pane opens when a sub-agent starts, and `/now` opens it at any time.
 
 `.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
 

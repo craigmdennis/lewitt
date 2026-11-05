@@ -25,7 +25,7 @@ Lewitt replaces an earlier setup that ran design projects through an orchestrati
 | Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
 | Researcher | Sub-agent `researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, Amplitude, a data warehouse, Notion and Linear, and rates its confidence in each finding | Its memory |
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
-| Designer fork | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
+| Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned.
 
@@ -39,13 +39,13 @@ Two hooks hold each sub-agent to its column:
 `plugins/now-view/` is a Claude Code mod. It adds a pane beside the chat:
 
 - **Needs you:** at the top, each question the designer flagged for the design lead, with the task it comes from. The designer flags a question with the `flag_for_design_lead` tool, and the design lead gets a notification. The designer's `resolve_flag` call, or "Mark answered" in the pane, clears it. With no open question, the band reads "NOTHING NEEDS YOU".
-- **Working:** a card for each task in progress: the team member's role, the task, a turning mark with the time since the task started, its number of tool calls, its latest tool call and the three before it.
+- **Working:** a card for each task in progress: the team member's role, the task, a turning mark with the time since the task started, its number of tool calls, its latest tool call and the three before it. While the designer works on a request in the chat, the DESIGNER card comes first, with the request as its task.
 - **Finished:** a row for each finished sub-agent: whether it finished, stopped or failed, how long it took, and the first line of its answer.
-- **Activity:** each start and end in the session, newest first, with its time.
+- **Activity:** each start and end in the session, newest first, with its time. The designer's requests show here when they end, and not under Finished, as the chat holds them.
 - The footer, at the bottom of the pane, shows the version. A copy made from a checkout also shows LOCAL with the commit it came from.
 - A run's number opens it: its status, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
 
-The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or SECOND DESIGNER. The terminal's font is the pane's font.
+The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
 
 To install it, run each command on its own, in this order.
 

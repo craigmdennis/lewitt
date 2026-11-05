@@ -74,7 +74,7 @@ test('a new chat lists the tasks of earlier chats in the project, with team name
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
-  expect((await ui.find({ text: /SECOND DESIGNER/ }))?.text).toContain('SECOND DESIGNER')
+  expect((await ui.find({ text: /DESIGN PARTNER/ }))?.text).toContain('DESIGN PARTNER')
   expect((await ui.find({ type: 'Text', text: /^FINISHED IN 6 MIN/ }))?.text).toBe('FINISHED IN 6 MIN, NOV 3')
   await ui.unmount()
 })
@@ -246,6 +246,53 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   await ui.press({ key: 'a9' })
   expect((await ui.find({ type: 'Markdown', text: /codebase report/ }))?.text).toBe(
     'Write the codebase report.',
+  )
+  await ui.unmount()
+})
+
+test("the designer's own turn shows as a card, then in the activity", async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('tool.call', () => ({ result: {} }))
+  on('turn.complete', () => ({ text: '' }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.turn.start({ text: 'Make the usage bar amber at 80%.\nThanks', turnId: 'm1' })
+  await $.tool.call({
+    tool: 'Edit',
+    file_path: '/run/prototype/v2/src/usage.tsx',
+    old_string: 'neutral',
+    new_string: 'warning',
+  })
+
+  let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^WORKING/ }))?.text).toBe('WORKING (1)')
+  expect((await ui.find({ type: 'Text', text: /^DESIGNER$/ }))?.text).toBe('DESIGNER')
+  expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
+    'Make the usage bar amber at 80%.',
+  )
+  expect((await ui.find({ type: 'Text', text: /^Edit: / }))?.text).toBe(
+    'Edit: /run/prototype/v2/src/usage.tsx',
+  )
+  await ui.unmount()
+
+  await $.turn.complete({
+    answer: 'Version 2 is ready.',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 'm1',
+    reason: 'answer',
+  })
+
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /^WORKING/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^FINISHED \(/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: /^DESIGNER finished/ }))?.text).toBe(
+    'DESIGNER finished: Make the usage bar amber at 80%.',
   )
   await ui.unmount()
 })
