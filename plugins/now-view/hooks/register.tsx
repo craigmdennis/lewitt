@@ -294,22 +294,28 @@ export const register: Register = on => {
         <Box width={LABEL} flexShrink={0}>
           <Text dimColor>{label}</Text>
         </Box>
-        <Text dimColor={dim} wrap="truncate-end">
-          {value}
-        </Text>
+        <Box flexGrow={1} flexShrink={1}>
+          <Text dimColor={dim} wrap="wrap">
+            {value}
+          </Text>
+        </Box>
       </Box>
     )
 
     // The page: the content, then the version line at the bottom of the pane.
     const page = (...content: RenderChildren[]) => (
-      <Box flexDirection="column" minHeight={rows}>
+      <Box flexDirection="column" width={width} minHeight={rows}>
         <Box flexDirection="column" flexGrow={1}>
           {content}
         </Box>
         <Text dimColor>{single}</Text>
         <Box flexDirection="row" justifyContent="space-between">
           <Text dimColor>NOW VIEW {VERSION}</Text>
-          {local && <Text inverse> LOCAL {local} </Text>}
+          {local && (
+            <Box flexShrink={1}>
+              <Text inverse wrap="truncate-end"> LOCAL {local} </Text>
+            </Box>
+          )}
         </Box>
       </Box>
     )
@@ -335,7 +341,7 @@ export const register: Register = on => {
         </Box>,
         <Box borderStyle="double" flexDirection="column" paddingX={1} marginTop={1}>
           <Text bold>{open.type.toUpperCase()}</Text>
-          <Text>{open.description}</Text>
+          <Text wrap="wrap">{open.description}</Text>
         </Box>,
         field('STATUS', open.status === 'running' ? 'RUNNING' : outcome(open)),
         field('STARTED', started(open)),
@@ -365,11 +371,11 @@ export const register: Register = on => {
 
     const header = (
       <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
-        <Box flexDirection="column">
+        <Box flexDirection="column" flexShrink={1}>
           <Text bold>NOW</Text>
-          <Text>SUB-AGENT TASKS</Text>
+          <Text wrap="wrap">SUB-AGENT TASKS</Text>
         </Box>
-        <Box flexDirection="column" alignItems="flex-end">
+        <Box flexDirection="column" alignItems="flex-end" flexShrink={1}>
           <Text>
             {running.length} WORKING, {finished.length} FINISHED
           </Text>
@@ -382,11 +388,13 @@ export const register: Register = on => {
       return page(
         header,
         <Text bold>No sub-agent tasks yet</Text>,
-        <Text>
+        <Text wrap="wrap">
           When the designer gives a task to a sub-agent, such as the copywriter or the researcher,
           the task shows here while it runs and after it finishes.
         </Text>,
-        <Text dimColor>Select a task to read the designer's brief and the sub-agent's answer.</Text>,
+        <Text dimColor wrap="wrap">
+          Select a task to read the designer's brief and the sub-agent's answer.
+        </Text>,
       )
     }
 
@@ -416,14 +424,14 @@ export const register: Register = on => {
         <Box key={`card-${run.id}`} borderStyle="single" flexDirection="column" paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
-              <Text bold>
+              <Text bold wrap="wrap">
                 {mark(run)}
                 {run.type.toUpperCase()}
               </Text>
             </Button>
             <Text inverse> RUNNING </Text>
           </Box>
-          <Text>{run.description}</Text>
+          <Text wrap="wrap">{run.description}</Text>
           <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
           {field('STARTED', started(run))}
           {field('TOOLS', toolCalls(run.toolCount))}
@@ -443,17 +451,19 @@ export const register: Register = on => {
               {mark(run)}
               {run.type.toUpperCase()}
             </Button>
-            <Text dimColor>{outcome(run)}</Text>
+            <Box flexShrink={0} marginLeft={1}>
+              <Text dimColor>{outcome(run)}</Text>
+            </Box>
           </Box>
-          <Text>
-            {'    '}
-            {run.description}
-          </Text>
+          <Box paddingLeft={4}>
+            <Text wrap="wrap">{run.description}</Text>
+          </Box>
           {run.answer && (
-            <Text dimColor wrap="truncate-end">
-              {'    '}
-              {firstLine(run.answer)}
-            </Text>
+            <Box paddingLeft={4}>
+              <Text dimColor wrap="wrap">
+                {firstLine(run.answer)}
+              </Text>
+            </Box>
           )}
           <Text dimColor>{single}</Text>
         </Box>
@@ -465,12 +475,16 @@ export const register: Register = on => {
           <Box width={LABEL} flexShrink={0}>
             <Text dimColor>{one.when}</Text>
           </Box>
-          <Text wrap="truncate-end">
-            {one.run.type.toUpperCase()} {one.verb}: {one.run.description}
-          </Text>
+          <Box flexGrow={1} flexShrink={1}>
+            <Text wrap="wrap">
+              {one.run.type.toUpperCase()} {one.verb}: {one.run.description}
+            </Text>
+          </Box>
         </Box>
       )),
-      <Text dimColor>Press a task's number to read its brief and answer.</Text>,
+      <Text dimColor wrap="wrap">
+        Press a task's number to read its brief and answer.
+      </Text>,
     )
   })
 }
