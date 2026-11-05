@@ -1,6 +1,6 @@
 {
   "name": "now-view",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "A pane that lists each subagent run with its status, latest tool and elapsed time, and shows a run's brief and answer",
   "types": "./types/index.d.ts",
   "author": {

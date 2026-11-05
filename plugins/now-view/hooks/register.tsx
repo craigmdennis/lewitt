@@ -767,8 +767,9 @@ export const register: Register = on => {
     return page(
       band,
       gap('running'),
-      <Text bold>RUNNING ({running.length})</Text>,
-      <Text>{double}</Text>,
+      // The section titles stay dim, so the cards hold the eye.
+      <Text dimColor>RUNNING ({running.length})</Text>,
+      <Text dimColor>{single}</Text>,
       running.length === 0 && <Text dimColor>Nothing is running.</Text>,
       ...running.map(run => (
         <Box key={`card-${run.id}`} borderStyle="single" flexDirection="column" paddingX={1}>
@@ -794,8 +795,8 @@ export const register: Register = on => {
         </Box>
       )),
       finished.length > 0 && gap('finished'),
-      finished.length > 0 && <Text bold>FINISHED ({finished.length})</Text>,
-      finished.length > 0 && <Text>{double}</Text>,
+      finished.length > 0 && <Text dimColor>FINISHED ({finished.length})</Text>,
+      finished.length > 0 && <Text dimColor>{single}</Text>,
       ...finished.slice(0, SHOWN).map(run => (
         <Box key={`row-${run.id}`} flexDirection="column">
           <Box flexDirection="row" justifyContent="space-between">
