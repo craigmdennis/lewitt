@@ -25,10 +25,8 @@ test('the empty pane says what will appear', async ($, on) => {
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /No sub-agent tasks yet/ }))?.text).toBe(
-    'No sub-agent tasks yet',
-  )
-  expect((await ui.find({ type: 'Text', text: /shows here while it runs/ }))?.text).toContain(
+  expect((await ui.find({ type: 'Text', text: /No tasks yet/ }))?.text).toBe('No tasks yet')
+  expect((await ui.find({ type: 'Text', text: /shows here while it is in progress/ }))?.text).toContain(
     'such as the copywriter',
   )
   await ui.unmount()
@@ -44,6 +42,40 @@ test('the footer shows the version', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^NOW VIEW/ }))?.text).toBe(`NOW VIEW ${VERSION}`)
+  await ui.unmount()
+})
+
+test('a new chat lists the tasks of earlier chats in the project, with team names', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('session.id', () => ({ value: 'chat-2' }))
+  on('session.root', () => ({ value: '/project' }))
+  on('store.get', () => ({
+    value: [
+      {
+        id: 'f1',
+        type: 'fork',
+        description: 'Second option',
+        brief: 'Build option B.',
+        status: 'done',
+        toolCount: 12,
+        startedAt: Date.UTC(2026, 10, 3, 10, 0),
+        endedAt: Date.UTC(2026, 10, 3, 10, 6),
+        answer: 'Option B is built.',
+        sessionId: 'chat-1',
+      },
+    ],
+  }))
+  on('store.set', () => ({ value: undefined }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
+  expect((await ui.find({ text: /SECOND DESIGNER/ }))?.text).toContain('SECOND DESIGNER')
+  expect((await ui.find({ type: 'Text', text: /^FINISHED IN 6 MIN/ }))?.text).toBe('FINISHED IN 6 MIN, NOV 3')
   await ui.unmount()
 })
 

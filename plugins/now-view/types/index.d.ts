@@ -20,6 +20,9 @@ export type Run = {
   // before the plugin loaded.
   durationMs?: number
   answer?: string
+  // The chat the run belongs to, so a later chat in the project lists it as
+  // history.
+  sessionId?: string
 }
 
 declare module 'claude-code' {

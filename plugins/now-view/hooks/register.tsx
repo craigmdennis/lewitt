@@ -8,6 +8,11 @@ const PANE = 'now-view'
 const TITLE = 'Now'
 const RECENT = 3
 const ACTIVITY = 8
+const SHOWN = 12
+// The tasks kept for a project across chats, and the most of a brief or an
+// answer kept with each, so the store stays well under its 4 MiB.
+const HISTORY = 100
+const KEPT = 4000
 const LABEL = 9
 // Change the tag when a run's fields change in a way an earlier value cannot
 // meet: it declines what an earlier version stored, which outlives a reload.
@@ -20,6 +25,26 @@ const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
 // The ids already looked up in the session's agent list, so a run the list
 // does not hold, such as a workflow's, is looked up once.
 const looked = new Set<string>()
+
+// The chat this session is, and the store key of its project's tasks. A reload
+// and a new chat each run session.start, which sets both again.
+let sessionId: string | undefined
+let storeKey: string | undefined
+
+// The team's names for the agent types the designer gives tasks to.
+const ROLE: Record<string, string> = {
+  copywriter: 'COPYWRITER',
+  researcher: 'RESEARCHER',
+  'frontend-engineer': 'FRONT-END ENGINEER',
+  fork: 'SECOND DESIGNER',
+  'general-purpose': 'TEAM MEMBER',
+  Explore: 'RESEARCH ASSISTANT',
+  Plan: 'PLANNER',
+}
+
+function role(type: string): string {
+  return ROLE[type] ?? (type.split(':').at(-1) ?? type).replace(/[-_]/g, ' ').toUpperCase()
+}
 
 // What the pane needs of an agent, from the session's agent list or from an
 // Agent call in the main transcript.
@@ -40,6 +65,17 @@ function clockTime(ms: number): string {
   const time = new Date(ms)
 
   return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
+}
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+// The time on the day it happened, or the date on an earlier day.
+function stamp(ms: number, now: number): string {
+  const when = new Date(ms)
+
+  return when.toDateString() === new Date(now).toDateString()
+    ? clockTime(ms)
+    : `${MONTHS[when.getMonth()]} ${when.getDate()}`
 }
 
 function duration(ms: number): string {
@@ -84,8 +120,8 @@ function outcome(run: Run): string {
 }
 
 const NO_ANSWER: Record<RunStatus, string> = {
-  running: 'No answer yet. The sub-agent is still working.',
-  done: 'The sub-agent finished without an answer.',
+  running: 'No answer yet. The task is still in progress.',
+  done: 'The task finished without an answer.',
   stopped: 'No answer. The task was stopped before it finished.',
   failed: 'No answer. The task failed before it finished.',
 }
@@ -120,6 +156,7 @@ async function adopt(
     toolCount: calls.length,
     startedAt: await $.clock.now(),
     seenLate: true,
+    sessionId,
     durationMs: found.status === 'running' ? undefined : extra.durationMs,
     answer:
       found.status === 'running'
@@ -127,7 +164,7 @@ async function adopt(
         : messages.filter(one => one.role === 'assistant' && one.text).at(-1)?.text,
   }
   await update($, runs, list =>
-    list.some(one => one.id === run.id) ? list : [...list, run].slice(-100),
+    list.some(one => one.id === run.id) ? list : [...list, run].slice(-HISTORY),
   )
 }
 
@@ -179,20 +216,62 @@ async function seen($: EngineInterface, id: string): Promise<void> {
   if (agent) await adopt($, { ...agent, status: statusOf(agent) }, {})
 }
 
+// Adds the project's tasks from earlier chats, kept in the store. A task that
+// was still working when its chat ended is left out.
+async function loadHistory($: EngineInterface): Promise<void> {
+  sessionId = await $.session.id().catch(() => undefined)
+  const root = await $.session.root().catch(() => undefined)
+  storeKey = root ? `runs:${root}` : undefined
+  if (!storeKey) return
+  const stored = await $.store.get(storeKey).catch(() => undefined)
+  if (!Array.isArray(stored)) return
+  const earlier = (stored as Run[]).filter(
+    run => run.sessionId !== sessionId && run.status !== 'running',
+  )
+  await update($, runs, list => {
+    const ids = new Set(list.map(one => one.id))
+
+    return [...earlier.filter(one => !ids.has(one.id)), ...list].slice(-HISTORY)
+  })
+}
+
+// Keeps the project's tasks in the store, merged with what another chat in the
+// project kept there meanwhile.
+async function save($: EngineInterface): Promise<void> {
+  if (!storeKey) return
+  const stored = await $.store.get(storeKey).catch(() => undefined)
+  const byId = new Map<string, Run>()
+  for (const run of Array.isArray(stored) ? (stored as Run[]) : []) byId.set(run.id, run)
+  for (const run of await read($, runs)) {
+    byId.set(run.id, {
+      ...run,
+      brief: run.brief.slice(0, KEPT),
+      answer: run.answer?.slice(0, KEPT),
+    })
+  }
+  const kept = [...byId.values()]
+    .sort((a, b) => (a.endedAt ?? a.startedAt) - (b.endedAt ?? b.startedAt))
+    .slice(-HISTORY)
+  await $.store.set(storeKey, kept).catch(() => undefined)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'now',
-      description: 'Show the subagent runs of this session in a pane',
+      description: "Show the team's tasks in this project in a pane",
     })
     // A reload runs session.start again, with the session's agents still working.
+    await loadHistory($).catch(() => undefined)
     await catchUp($)
+    await save($)
 
     return next(e)
   })
 
   on('command.run', { command: 'now' }, async $ => {
     await catchUp($).catch(() => undefined)
+    await save($)
     await $.ui.open({ id: PANE, title: TITLE })
 
     return { text: 'Now pane opened.' }
@@ -211,8 +290,10 @@ export const register: Register = on => {
       status: 'running',
       toolCount: 0,
       startedAt: await $.clock.now(),
+      sessionId,
     }
-    await update($, runs, list => [...list.filter(one => one.id !== run.id), run].slice(-100))
+    await update($, runs, list => [...list.filter(one => one.id !== run.id), run].slice(-HISTORY))
+    await save($)
     void $.ui.open({ id: PANE, title: TITLE })
 
     return started
@@ -269,6 +350,7 @@ export const register: Register = on => {
           one.id === id ? { ...one, status, endedAt, answer: e.answer } : one,
         ),
       )
+      await save($)
     }
 
     return next(e)
@@ -340,7 +422,7 @@ export const register: Register = on => {
           </Button>
         </Box>,
         <Box borderStyle="double" flexDirection="column" paddingX={1} marginTop={1}>
-          <Text bold>{open.type.toUpperCase()}</Text>
+          <Text bold>{role(open.type)}</Text>
           <Text wrap="wrap">{open.description}</Text>
         </Box>,
         field('STATUS', open.status === 'running' ? 'RUNNING' : outcome(open)),
@@ -359,7 +441,9 @@ export const register: Register = on => {
     }
 
     const running = list.filter(one => one.status === 'running')
-    const finished = list.filter(one => one.status !== 'running').reverse()
+    const finished = list
+      .filter(one => one.status !== 'running')
+      .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt))
     const order = [...running, ...finished]
     const hotkey = (run: Run) => {
       const index = order.indexOf(run)
@@ -373,7 +457,7 @@ export const register: Register = on => {
       <Box borderStyle="double" flexDirection="row" justifyContent="space-between" paddingX={1}>
         <Box flexDirection="column" flexShrink={1}>
           <Text bold>NOW</Text>
-          <Text wrap="wrap">SUB-AGENT TASKS</Text>
+          <Text wrap="wrap">TEAM TASKS</Text>
         </Box>
         <Box flexDirection="column" alignItems="flex-end" flexShrink={1}>
           <Text>
@@ -387,13 +471,13 @@ export const register: Register = on => {
     if (list.length === 0) {
       return page(
         header,
-        <Text bold>No sub-agent tasks yet</Text>,
+        <Text bold>No tasks yet</Text>,
         <Text wrap="wrap">
-          When the designer gives a task to a sub-agent, such as the copywriter or the researcher,
-          the task shows here while it runs and after it finishes.
+          When the designer gives a task to a team member, such as the copywriter or the
+          researcher, the task shows here while it is in progress and after it finishes.
         </Text>,
         <Text dimColor wrap="wrap">
-          Select a task to read the designer's brief and the sub-agent's answer.
+          Select a task to read the designer's brief and the team member's answer.
         </Text>,
       )
     }
@@ -412,7 +496,7 @@ export const register: Register = on => {
       run => run.seenLate && run.status !== 'running' && run.endedAt === undefined,
     )
     const activity = [
-      ...events.map(one => ({ when: clockTime(one.at), run: one.run, verb: one.verb })),
+      ...events.map(one => ({ when: stamp(one.at, now), run: one.run, verb: one.verb })),
       ...earlier.reverse().map(run => ({ when: 'EARLIER', run, verb: VERB[run.status] })),
     ].slice(0, ACTIVITY)
 
@@ -426,7 +510,7 @@ export const register: Register = on => {
             <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
               <Text bold wrap="wrap">
                 {mark(run)}
-                {run.type.toUpperCase()}
+                {role(run.type)}
               </Text>
             </Button>
             <Text inverse> RUNNING </Text>
@@ -444,15 +528,18 @@ export const register: Register = on => {
       )),
       finished.length > 0 && <Text bold>FINISHED ({finished.length})</Text>,
       finished.length > 0 && <Text>{double}</Text>,
-      ...finished.map(run => (
+      ...finished.slice(0, SHOWN).map(run => (
         <Box key={`row-${run.id}`} flexDirection="column">
           <Box flexDirection="row" justifyContent="space-between">
             <Button key={run.id} plain hotkey={hotkey(run)} onPress={() => update($, selected, () => run.id)}>
               {mark(run)}
-              {run.type.toUpperCase()}
+              {role(run.type)}
             </Button>
             <Box flexShrink={0} marginLeft={1}>
-              <Text dimColor>{outcome(run)}</Text>
+              <Text dimColor>
+                {outcome(run)}
+                {run.endedAt !== undefined ? `, ${stamp(run.endedAt, now)}` : ''}
+              </Text>
             </Box>
           </Box>
           <Box paddingLeft={4}>
@@ -468,6 +555,11 @@ export const register: Register = on => {
           <Text dimColor>{single}</Text>
         </Box>
       )),
+      finished.length > SHOWN && (
+        <Text dimColor wrap="wrap">
+          {finished.length - SHOWN} earlier finished tasks are in the project's history.
+        </Text>
+      ),
       <Text bold>ACTIVITY</Text>,
       <Text>{double}</Text>,
       ...activity.map(one => (
@@ -477,7 +569,7 @@ export const register: Register = on => {
           </Box>
           <Box flexGrow={1} flexShrink={1}>
             <Text wrap="wrap">
-              {one.run.type.toUpperCase()} {one.verb}: {one.run.description}
+              {role(one.run.type)} {one.verb}: {one.run.description}
             </Text>
           </Box>
         </Box>
