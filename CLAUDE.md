@@ -164,17 +164,17 @@ The `now-view` plugin in `plugins/now-view/` shows each sub-agent run in a pane:
 
 1. Run `claude plugin list`, and look for `now-view@lewitt` with the status enabled.
 2. If it is missing or disabled, ask the design lead whether to install it, and wait for the answer.
-3. If the design lead says yes, give these three commands to run in this session, in this order:
+3. If the design lead says yes, install it with Bash. Add the marketplace only when `claude plugin marketplace list` does not list `lewitt`:
 
-   ```
-   /plugin marketplace add craigmdennis/lewitt
-   /plugin install now-view@lewitt
-   /reload-plugins
+   ```sh
+   claude plugin marketplace add craigmdennis/lewitt
+   claude plugin install now-view@lewitt
    ```
 
-   The session loads the plugin only at `/reload-plugins`, and the pane lists only the sub-agents that start after it.
-4. Ask the design lead to run `/now` and say whether the pane opened. Start no sub-agent until the pane opens. If it does not open, report it, and ask whether to start the project without it.
-5. If the design lead says no to the install, start the project without it, and ask again at the next project.
+   Run `claude plugin list` again, and check that `now-view@lewitt` shows as enabled.
+4. Ask the design lead to type `/reload-plugins`, then `/now`, each as its own message. A slash command opens its own prompt, so two commands pasted together fail. The session loads the plugin only at `/reload-plugins`, and the pane lists only the sub-agents that start after it.
+5. Wait for the design lead to say the pane opened. Start no sub-agent before then. If it does not open, report it, and ask whether to start the project without it.
+6. If the design lead says no to the install, start the project without it, and ask again at the next project.
 
 ## Data and privacy
 
