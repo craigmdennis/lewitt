@@ -125,6 +125,31 @@ async function seen($: EngineInterface, id: string): Promise<void> {
   if (agent) await adopt($, agent)
 }
 
+// The version of the copy that loaded, and where it came from. A copy that
+// scripts/now-view.sh made from a checkout has .local.json beside plugin.json.
+// A copy loaded with --plugin-dir sits outside the plugin cache.
+type Build = { version?: string; local?: string }
+let build: Build = {}
+
+async function readBuild($: EngineInterface): Promise<Build> {
+  const root = $.plugin.root
+  const manifest = await $.fs
+    .read(`${root}/.claude-plugin/plugin.json`)
+    .then(text => JSON.parse(text as string) as { version?: string })
+    .catch(() => ({}) as { version?: string })
+  const marker = await $.fs
+    .read(`${root}/.local.json`)
+    .then(text => JSON.parse(text as string) as { commit?: string })
+    .catch(() => undefined)
+  const local = marker
+    ? `LOCAL ${marker.commit ?? ''}`.trim()
+    : root.includes('/.claude/plugins/cache/')
+      ? undefined
+      : 'LOCAL CHECKOUT'
+
+  return { version: manifest.version, local }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -132,6 +157,7 @@ export const register: Register = on => {
       description: 'Show the subagent runs of this session in a pane',
     })
     // A reload runs session.start again, with the session's agents still working.
+    build = await readBuild($).catch(() => ({}))
     await catchUp($)
 
     return next(e)
@@ -230,6 +256,17 @@ export const register: Register = on => {
     const double = '═'.repeat(width)
     const single = '─'.repeat(width)
 
+    // The version, and LOCAL with its commit for a copy made from a checkout.
+    const footer = (
+      <Box flexDirection="column" marginTop={1}>
+        <Text dimColor>{single}</Text>
+        <Box flexDirection="row" justifyContent="space-between">
+          <Text dimColor>NOW VIEW {build.version ?? ''}</Text>
+          {build.local ? <Text inverse> {build.local} </Text> : <Text dimColor>LIVE</Text>}
+        </Box>
+      </Box>
+    )
+
     // One label and value row, as in a printed manual's specification table.
     const field = (label: string, value: string, dim = false) => (
       <Box flexDirection="row">
@@ -276,6 +313,7 @@ export const register: Register = on => {
           <Text bold>ANSWER TO THE DESIGNER</Text>
           <Text dimColor>{single}</Text>
           {open.answer ? <Markdown text={open.answer} /> : <Text dimColor>{NO_ANSWER[open.status]}</Text>}
+          {footer}
         </Box>
       )
     }
@@ -313,6 +351,7 @@ export const register: Register = on => {
             the task shows here while it runs and after it finishes.
           </Text>
           <Text dimColor>Select a task to read the designer's brief and the sub-agent's answer.</Text>
+          {footer}
         </Box>
       )
     }
@@ -363,6 +402,7 @@ export const register: Register = on => {
           </Box>
         ))}
         <Text dimColor>Press a task's number to read its brief and answer.</Text>
+        {footer}
       </Box>
     )
   })

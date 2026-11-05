@@ -74,20 +74,22 @@ The pane also lists the sub-agents that started before `/reload-plugins`, from t
 
 Run its test with `claude plugin test plugins/now-view`.
 
+To try a change to the pane before pushing it, run `scripts/now-view.sh local`, then type `/reload-plugins`. The script copies `plugins/now-view/` from this checkout into the installed plugin. The pane's footer then shows LOCAL with the commit it was copied from. `scripts/now-view.sh live` puts the version pushed to GitHub back, and `scripts/now-view.sh status` says which one is installed. The `now-view-source` skill runs the same script.
+
 ## Contents
 
 | Path | Content |
 |---|---|
 | `CLAUDE.md` | The designer's guidelines: roles, stages, the prototype, briefs, pull requests, memory and rules |
 | `.claude/agents/` | The sub-agent roles: `copywriter.md`, `researcher.md` and `frontend-engineer.md` |
-| `.claude/skills/` | `copy-rules` for the copywriter, `research-methods` for the researcher |
+| `.claude/skills/` | `copy-rules` for the copywriter, `research-methods` for the researcher, `now-view-source` to switch the installed Now view between this checkout and the pushed version |
 | `.claude/hooks/` | `memory-only-writes.py` and `no-remote-writes.py` |
 | `guides/` | Usability, visual design and UX writing principles |
 | `.githooks/` | The pre-commit check against the product's denylist |
 | `FIRST-RUN.md` | The setup the designer runs when `lewitt.env` or a guide in `notes/` is missing |
 | `templates/notes/` | The guides the first run fills in: the app, the design system, copy sources, research sources, pattern rules and skills |
 | `plugins/now-view/` | The Now view |
-| `scripts/` | `point-at.sh`, and the prototype build, session and screenshot scripts |
+| `scripts/` | `point-at.sh`, `now-view.sh`, and the prototype build, session and screenshot scripts |
 | `lewitt.env` | The pointers for this Mac. Ignored by git |
 | `worktrees/` | The app repository's worktrees, by default. Ignored by git |
 | `notes`, `.claude/agent-memory` | Links to `.lewitt/` in the app repository. Ignored by git |

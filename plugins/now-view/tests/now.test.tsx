@@ -31,6 +31,24 @@ test('the empty pane says what will appear', async ($, on) => {
   await ui.unmount()
 })
 
+test('the footer shows the version, and LOCAL with the commit for a local copy', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+  on('fs.read', (_, e) =>
+    e.path.endsWith('/.claude-plugin/plugin.json')
+      ? { value: '{ "name": "now-view", "version": "9.9.9" }' }
+      : { value: '{ "source": "local", "commit": "abc1234" }' },
+  )
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^NOW VIEW/ }))?.text).toBe('NOW VIEW 9.9.9')
+  expect((await ui.find({ type: 'Text', text: /LOCAL/ }))?.text).toBe(' LOCAL abc1234 ')
+  await ui.unmount()
+})
+
 test('a subagent shows as working, then finished with its answer', async ($, on) => {
   // Nothing sits beneath the plugin: each hook here stands for the engine.
   on('command.register', () => ({ value: { command: 'now' } }))
