@@ -609,9 +609,14 @@ export const register: Register = on => {
           </Box>
         ) : (
           <Box flexDirection="column">
-            <Text bold color="warning">
-              {waiting.length === 1 ? '1 THING NEEDS YOU' : `${waiting.length} THINGS NEED YOU`}
-            </Text>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text bold color="warning">
+                {waiting.length === 1 ? '1 THING NEEDS YOU' : `${waiting.length} THINGS NEED YOU`}
+              </Text>
+              <Box flexShrink={0} marginLeft={1}>
+                <Text dimColor>Answer in the chat</Text>
+              </Box>
+            </Box>
             {waiting.map(flag => {
               const from = list.find(one => one.id === flag.agentId)
 
@@ -621,9 +626,9 @@ export const register: Register = on => {
                   <Box flexDirection="row" justifyContent="space-between">
                     <Box flexShrink={1}>
                       <Text dimColor wrap="wrap">
-                        {flag.id}, {stamp(flag.at, now)}
-                        {from ? `, ${role(from.type)}: ${from.description}` : ', FROM THE DESIGNER'}
-                        . Answer in the chat.
+                        {from
+                          ? `From the ${role(from.type).toLowerCase()}, ${stamp(flag.at, now)}: ${from.description}`
+                          : `From the designer, ${stamp(flag.at, now)}`}
                       </Text>
                     </Box>
                     <Button
@@ -688,7 +693,7 @@ export const register: Register = on => {
         </Box>,
         ...waiting
           .filter(flag => flag.agentId === open.id)
-          .map(flag => field('NEEDS YOU', `${flag.question} (${flag.id})`)),
+          .map(flag => field('NEEDS YOU', flag.question)),
         field('STATUS', open.status === 'running' ? 'IN PROGRESS' : outcome(open)),
         field('STARTED', started(open)),
         ...progress(open),

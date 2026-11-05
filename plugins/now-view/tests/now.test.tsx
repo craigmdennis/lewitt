@@ -115,7 +115,11 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /THING NEEDS YOU$/ }))?.text).toBe('1 THING NEEDS YOU')
   expect((await ui.find({ type: 'Text', text: /toast title/ }))?.text).toContain('Changes saved')
-  expect((await ui.find({ type: 'Text', text: /^F1, / }))?.text).toMatch(/^F1, \d\d:\d\d, COPYWRITER: Toast copy\. Answer in the chat\.$/)
+  expect((await ui.find({ type: 'Text', text: /^From the / }))?.text).toMatch(
+    /^From the copywriter, \d\d:\d\d: Toast copy$/,
+  )
+  expect((await ui.find({ type: 'Text', text: /^Answer in the chat$/ }))?.text).toBe('Answer in the chat')
+  expect(await ui.find({ type: 'Text', text: /F1/ })).toBeUndefined()
   await ui.unmount()
 
   const resolved = await $.tool.call({ tool: 'mcp__now-view__resolve_flag', id: 'F1' })
