@@ -89,12 +89,6 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   on('session.messages', () => ({ value: [] }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'c1' }))
   on('turn.complete', () => ({ text: '' }))
-  const sent: string[] = []
-  on('prompt.submit', (_, e) => {
-    sent.push(e.text)
-
-    return { text: e.text }
-  })
   on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -121,7 +115,7 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /THING NEEDS YOU$/ }))?.text).toBe('1 THING NEEDS YOU')
   expect((await ui.find({ type: 'Text', text: /toast title/ }))?.text).toContain('Changes saved')
-  expect((await ui.find({ type: 'Text', text: /^F1, / }))?.text).toMatch(/^F1, \d\d:\d\d, COPYWRITER: Toast copy$/)
+  expect((await ui.find({ type: 'Text', text: /^F1, / }))?.text).toMatch(/^F1, \d\d:\d\d, COPYWRITER: Toast copy\. Answer in the chat\.$/)
   await ui.unmount()
 
   const resolved = await $.tool.call({ tool: 'mcp__now-view__resolve_flag', id: 'F1' })
@@ -130,16 +124,13 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
   await ui.unmount()
 
-  // An answer typed in the pane goes to the designer and clears the flag.
+  // "Done" in the pane clears a flag the design lead answered in the chat.
   await $.tool.call({
     tool: 'mcp__now-view__flag_for_design_lead',
     question: 'Should B move calls and texts into the credit pool?',
   })
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  await ui.input({ key: 'answer-F2', text: 'No, keep calls and texts in dollars.' })
-  expect(sent).toHaveLength(1)
-  expect(sent[0]).toContain('No, keep calls and texts in dollars.')
-  expect(sent[0]).toContain('F2')
+  await ui.press({ key: 'answered-F2' })
   expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
   await ui.unmount()
 })

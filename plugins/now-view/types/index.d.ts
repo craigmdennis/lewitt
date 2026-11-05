@@ -36,8 +36,6 @@ export type Flag = {
   agentId?: string
   at: number
   resolvedAt?: number
-  // What the design lead typed in the pane, which went to the designer.
-  answer?: string
 }
 
 declare module 'claude-code' {

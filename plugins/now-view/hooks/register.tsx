@@ -545,8 +545,6 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const elements = $.ui.resolve(e)
     const { Box, Text, Button, Markdown, Link } = elements
-    // A field for the design lead's answer, where the surface draws one.
-    const Input = 'Input' in elements ? elements.Input : undefined
     // The animated working mark, where the surface draws a Client.
     const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, runs)
@@ -628,35 +626,12 @@ export const register: Register = on => {
               return (
                 <Box key={`flag-${flag.id}`} flexDirection="column" marginTop={1}>
                   <Text wrap="wrap">{flag.question}</Text>
-                  {Input && (
-                    <Box borderStyle="single" borderColor="warning" paddingX={1} marginY={1}>
-                      <Input
-                        key={`answer-${flag.id}`}
-                        placeholder="Type your answer, then press Enter"
-                        submitLabel="send"
-                        onSubmit={async value => {
-                          const answer = value.trim()
-                          if (!answer) return
-                          await $.prompt.submit({
-                            text: `${answer}\n\n(My answer to ${flag.id}: ${flag.question})`,
-                            asUser: true,
-                          })
-                          const at = await $.clock.now()
-                          await update($, flags, all =>
-                            all.map(one =>
-                              one.id === flag.id ? { ...one, resolvedAt: at, answer } : one,
-                            ),
-                          )
-                          await saveFlags($)
-                        }}
-                      />
-                    </Box>
-                  )}
                   <Box flexDirection="row" justifyContent="space-between">
                     <Box flexShrink={1}>
                       <Text dimColor wrap="wrap">
                         {flag.id}, {stamp(flag.at, now)}
                         {from ? `, ${role(from.type)}: ${from.description}` : ', FROM THE DESIGNER'}
+                        . Answer in the chat.
                       </Text>
                     </Box>
                     <Button
@@ -670,7 +645,7 @@ export const register: Register = on => {
                         await saveFlags($)
                       }}
                     >
-                      <Text dimColor>Mark answered</Text>
+                      <Text bold>Done</Text>
                     </Button>
                   </Box>
                 </Box>
