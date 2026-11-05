@@ -136,6 +136,29 @@ function duration(ms: number): string {
   return minutes < 1 ? `${Math.round(ms / 1000)} SEC` : `${minutes} MIN`
 }
 
+// Text in exactly `count` lines of at most `columns` characters, broken at
+// spaces, the last line ending in "…" when the text is longer.
+function fixedLines(text: string, columns: number, count: number): string[] {
+  const lines: string[] = []
+  let rest = text.replace(/\s+/g, ' ').trim()
+  while (lines.length < count && rest.length > 0) {
+    if (rest.length <= columns) {
+      lines.push(rest)
+      rest = ''
+      break
+    }
+    const last = lines.length === count - 1
+    const room = last ? columns - 1 : columns
+    const space = rest.lastIndexOf(' ', room)
+    const cut = space > 0 ? space : room
+    lines.push(last ? `${rest.slice(0, cut).trimEnd()}…` : rest.slice(0, cut))
+    rest = rest.slice(cut).trimStart()
+  }
+  while (lines.length < count) lines.push('')
+
+  return lines
+}
+
 function firstLine(text: string): string {
   return (text.split('\n').find(line => line.trim().length > 0) ?? '').replace(/^[#>*\-\s]+/, '')
 }
@@ -657,8 +680,18 @@ export const register: Register = on => {
           : clockTime(run.startedAt)
 
     // What a task is doing now, and the files it changed.
-    const progress = (run: Run) => [
-      run.status === 'running' && field('NOW', run.lastTool ?? 'Getting started'),
+    // NOW holds two rows on a card whatever the step's length, so a card keeps
+    // its height as the steps change. A task's own view shows the step whole.
+    const nowRows = (text: string) =>
+      fixedLines(text, Math.max(10, width - 4 - LABEL), 2).map((line, index) =>
+        field(index === 0 ? 'NOW' : '', line || ' '),
+      )
+    const progress = (run: Run, fixed = false) => [
+      ...(run.status !== 'running'
+        ? []
+        : fixed
+          ? nowRows(run.lastTool ?? 'Getting started')
+          : [field('NOW', run.lastTool ?? 'Getting started')]),
       ...(run.changed ?? [])
         .slice(-CHANGED)
         .map((path, index) => field(index === 0 ? 'CHANGED' : '', fileLink(path))),
@@ -757,7 +790,7 @@ export const register: Register = on => {
           </Box>
           <Text wrap="wrap">{run.description}</Text>
           <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
-          {progress(run)}
+          {progress(run, true)}
         </Box>
       )),
       finished.length > 0 && gap('finished'),

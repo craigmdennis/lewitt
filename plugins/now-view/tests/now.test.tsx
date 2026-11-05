@@ -229,6 +229,20 @@ test('a subagent shows as working, then finished with its answer', async ($, on)
     await ui.unmount()
   }
 
+  // A long step keeps to the card's two NOW rows.
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'ls',
+    description:
+      'Compare the toast copy with every usage alert, billing banner and limit message in the settings pages and the mobile app',
+    agentId: 'a1',
+  })
+  const long = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const rows = await long.findAll({ type: 'Text', text: /^(Compare|.*…$|.*message)/ })
+  expect(rows.length).toBeGreaterThan(0)
+  expect(rows.at(-1)?.text.endsWith('…')).toBe(true)
+  await long.unmount()
+
   await $.turn.complete({
     agentId: 'a1',
     answer: 'Your main card was updated',
