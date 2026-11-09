@@ -181,6 +181,15 @@ function firstLine(text: string): string {
   return (text.split('\n').find(line => line.trim().length > 0) ?? '').replace(/^[#>*\-\s]+/, '')
 }
 
+// What a designer turn did: the first line of its answer, or else its last
+// step. The design lead wrote the request, so the pane does not repeat it.
+function didWhat(run: Run): string {
+  const said = run.answer ? firstLine(run.answer).replace(/\*\*/g, '') : ''
+  if (said) return said.length > 160 ? `${said.slice(0, 159)}…` : said
+
+  return run.lastTool ?? 'Answered in the chat'
+}
+
 const STATUS: Record<RunStatus, string> = {
   running: 'IN PROGRESS',
   done: 'FINISHED',
@@ -809,21 +818,45 @@ export const register: Register = on => {
     // What a task is doing now, and the files it changed.
     // NOW holds two rows on a card whatever the step's length, so a card keeps
     // its height as the steps change. A task's own view shows the step whole.
-    const nowRows = (text: string) =>
-      fixedLines(text, Math.max(10, width - 4 - LABEL), 2).map((line, index) =>
-        field(index === 0 ? 'NOW' : '', line || ' '),
+    // On a card the step sits under the role, indented, with the turning mark
+    // before it.
+    const INDENT = 4
+    const MARK = 2
+    const stepRows = (run: Run) =>
+      fixedLines(run.lastTool ?? 'Getting started', Math.max(10, width - 4 - INDENT - MARK), 2).map(
+        (line, index) => (
+          <Box key={`step-${run.id}-${index}`} flexDirection="row" paddingLeft={INDENT}>
+            <Box width={MARK} flexShrink={0}>
+              {index > 0 ? (
+                <Text> </Text>
+              ) : Client ? (
+                <Client key={`mark-${run.id}`} module="./working.tsx" props={{ since: null, show: 'mark' }} />
+              ) : (
+                <Text bold>✳</Text>
+              )}
+            </Box>
+            <Text>{line || ' '}</Text>
+          </Box>
+        ),
       )
     const progress = (run: Run, fixed = false) => [
       ...(run.status !== 'running'
         ? []
         : fixed
-          ? nowRows(run.lastTool ?? 'Getting started')
+          ? stepRows(run)
           : [field('NOW', run.lastTool ?? 'Getting started')]),
       ...(run.changed ?? [])
         .slice(-CHANGED)
-        .map((path, index) => field(index === 0 ? 'CHANGED' : '', fileLink(path))),
-      (run.changed?.length ?? 0) > CHANGED &&
-        field('', `and ${(run.changed?.length ?? 0) - CHANGED} more`, true),
+        .map((path, index) => (
+          <Box key={`changed-${run.id}-${index}`} paddingLeft={fixed ? INDENT : 0}>
+            {field(index === 0 ? 'CHANGED' : '', fileLink(path))}
+          </Box>
+        )),
+      (run.changed?.length ?? 0) > CHANGED && (
+        <Box key={`more-${run.id}`} paddingLeft={fixed ? INDENT : 0}>
+          {field('', `and ${(run.changed?.length ?? 0) - CHANGED} more`, true)}
+        </Box>
+      ),
     ]
 
     if (open) {
@@ -876,8 +909,14 @@ export const register: Register = on => {
       ...list.filter(one => one.type === DESIGNER && one.status === 'running'),
       ...team.filter(one => one.status === 'running'),
     ]
+    // The designer's latest turn always has a row, which its next turn
+    // replaces when it only answered in the chat.
+    const latest = list.filter(one => one.type === DESIGNER).at(-1)
     const finished = list
-      .filter(one => one.status !== 'running' && (one.type !== DESIGNER || produced(one)))
+      .filter(
+        one =>
+          one.status !== 'running' && (one.type !== DESIGNER || produced(one) || one === latest),
+      )
       .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt))
 
     if (list.length === 0) {
@@ -918,14 +957,14 @@ export const register: Register = on => {
               <Client
                 key={`working-${run.id}`}
                 module="./working.tsx"
-                props={{ since: run.seenLate ? null : run.startedAt }}
+                props={{ since: run.seenLate ? null : run.startedAt, show: 'time' }}
               />
             ) : (
               <Text bold>{run.seenLate ? '' : duration(now - run.startedAt)}</Text>
             )}
           </Box>
-          <Text wrap="wrap">{run.description}</Text>
-          <Text dimColor>{'─'.repeat(Math.max(1, width - 4))}</Text>
+          {/* The designer's task is the design lead's own request, so its card shows the step alone. */}
+          {run.type !== DESIGNER && <Text wrap="wrap">{run.description}</Text>}
           {progress(run, true)}
         </Box>
       )),
@@ -952,9 +991,9 @@ export const register: Register = on => {
             </Box>
           </Box>
           <Box paddingLeft={4}>
-            <Text wrap="wrap">{run.description}</Text>
+            <Text wrap="wrap">{run.type === DESIGNER ? didWhat(run) : run.description}</Text>
           </Box>
-          {run.type === DESIGNER && (
+          {run.type === DESIGNER && produced(run) && (
             <Box paddingLeft={4}>
               <Text dimColor wrap="wrap">
                 {listed(

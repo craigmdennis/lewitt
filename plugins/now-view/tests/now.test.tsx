@@ -298,7 +298,7 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   await ui.unmount()
 })
 
-test("the designer's turn shows as a card while it runs, and as finished when it produced work", async ($, on) => {
+test("the designer's turn shows its step while it runs, and its latest turn always has a finished row", async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
@@ -322,9 +322,9 @@ test("the designer's turn shows as a card while it runs, and as finished when it
   let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^RUNNING/ }))?.text).toBe('RUNNING (1)')
   expect((await ui.find({ type: 'Text', text: /^DESIGNER$/ }))?.text).toBe('DESIGNER')
-  expect((await ui.find({ type: 'Text', text: /^Make the usage/ }))?.text).toBe(
-    'Make the usage bar amber at 80%.',
-  )
+  // The card shows the step, without the request the design lead wrote.
+  expect(await ui.find({ type: 'Text', text: /^Make the usage/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^NOW$/ })).toBeUndefined()
   await ui.press({ key: 'designer-m1' })
   expect((await ui.find({ type: 'Text', text: /^YOUR REQUEST$/ }))?.text).toBe('YOUR REQUEST')
   expect((await ui.find({ type: 'Text', text: /^ANSWER TO YOU$/ }))?.text).toBe('ANSWER TO YOU')
@@ -349,17 +349,22 @@ test("the designer's turn shows as a card while it runs, and as finished when it
   expect((await ui.find({ type: 'Text', text: /^Nothing is running/ }))?.text).toBe('Nothing is running.')
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
   expect((await ui.find({ type: 'Text', text: /^1 file changed$/ }))?.text).toBe('1 file changed')
+  expect((await ui.find({ type: 'Text', text: /^Version 2/ }))?.text).toBe('Version 2 is ready.')
   await ui.unmount()
 
-  // A turn that only answers in the chat is not listed.
+  // A turn that only answers in the chat has a row until the next turn starts.
   await $.turn.start({ text: 'Why amber?', turnId: 'm2' })
   await $.turn.complete({
-    answer: 'Amber is the warning colour.',
+    answer: '**Amber** is the warning colour.\n\nMore detail.',
     durationMs: 1000,
     isAborted: false,
     turnId: 'm2',
     reason: 'answer',
   })
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (2)')
+  expect((await ui.find({ type: 'Text', text: /^Amber/ }))?.text).toBe('Amber is the warning colour.')
+  await ui.unmount()
   // A turn that gives the team a task is listed, with the task in its view.
   await $.turn.start({ text: 'Get copy for the warning.', turnId: 'm3' })
   await $.agent.spawn({ prompt: 'Write the warning copy.', description: 'Warning copy', subagentType: 'copywriter' })
@@ -374,6 +379,7 @@ test("the designer's turn shows as a card while it runs, and as finished when it
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (2)')
   expect(await ui.find({ type: 'Text', text: /^Why amber/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^Amber/ })).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: /^1 task for the team$/ }))?.text).toBe('1 task for the team')
   await ui.press({ key: 'designer-m3' })
   expect((await ui.find({ type: 'Text', text: /^COPYWRITER: / }))?.text).toBe('COPYWRITER: Warning copy')

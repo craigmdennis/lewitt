@@ -1,12 +1,12 @@
 import type { ClientModule } from 'claude-code'
 
 // The mark of a task in progress, drawn by the surface on its own frame clock:
-// a turning glyph, as on Claude Code's own working line, and the time since
-// the task started, counting up.
+// a turning glyph, as on Claude Code's own working line, or the time since the
+// task started, counting up.
 const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢']
 const FRAME_MS = 120
 
-type Props = { since: number | null }
+type Props = { since: number | null; show: 'mark' | 'time' }
 
 function elapsed(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))
@@ -25,15 +25,9 @@ const Working: ClientModule<Props, number> = (props, surface) => {
     })
     surface.setState(0)
   }
-  const frame = FRAMES[(surface.state ?? 0) % FRAMES.length]
-  const time = props.since === null ? '' : ` ${elapsed(Date.now() - props.since)}`
+  if (props.show === 'mark') return <Text bold>{FRAMES[(surface.state ?? 0) % FRAMES.length]}</Text>
 
-  return (
-    <Text bold>
-      {frame}
-      {time}
-    </Text>
-  )
+  return <Text bold>{props.since === null ? '' : elapsed(Date.now() - props.since)}</Text>
 }
 
 export default Working
