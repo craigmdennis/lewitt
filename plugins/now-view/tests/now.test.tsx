@@ -379,3 +379,45 @@ test("the designer's turn shows as a card while it runs, and as finished when it
   expect((await ui.find({ type: 'Text', text: /^COPYWRITER: / }))?.text).toBe('COPYWRITER: Warning copy')
   await ui.unmount()
 })
+
+test('the project summary shows at the top, and a new chat in the folder reads it from the store', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('tool.register', (_, e) => ({ value: { tool: `mcp__now-view__${e.name}` } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('session.id', () => ({ value: 'chat-1' }))
+  on('session.root', () => ({ value: '/project' }))
+  on('store.get', (_, e) => ({ value: kept[e.key] }))
+  on('store.set', (_, e) => {
+    kept[e.key] = e.value
+    return { value: undefined }
+  })
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^NO PROJECT YET$/ }))?.text).toBe('NO PROJECT YET')
+  await ui.unmount()
+
+  const refused = await $.tool.call({ tool: 'mcp__now-view__set_project', stage: 'Scope' })
+  expect(String(refused.result)).toContain('give a name and a goal')
+
+  await $.tool.call({
+    tool: 'mcp__now-view__set_project',
+    name: 'ABC-1 · Billing page',
+    goal: 'Show what the next invoice will be.',
+    stage: 'Scope',
+  })
+  await $.tool.call({ tool: 'mcp__now-view__set_project', next: 'You pick one of two layouts.' })
+
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /BILLING PAGE/ }))?.text).toBe('ABC-1 · BILLING PAGE')
+  expect((await ui.find({ type: 'Text', text: /next invoice/ }))?.text).toBe('Show what the next invoice will be.')
+  expect((await ui.find({ type: 'Text', text: /^Scope$/ }))?.text).toBe('Scope')
+  expect((await ui.find({ type: 'Text', text: /two layouts/ }))?.text).toBe('You pick one of two layouts.')
+  await ui.unmount()
+
+  expect(Array.isArray(kept['project:/project'])).toBe(true)
+})

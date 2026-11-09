@@ -55,6 +55,8 @@ A full-stack engineer for backend changes is planned. Until it exists, the front
 
 A project runs in stages. The design lead approves each stage before the next one starts.
 
+Keep the project summary at the top of the Now view current. Call `set_project` when the project is scoped, when each stage starts, and after each version, with the issue and the project name, the goal in one sentence, the stage and the version, what happens next, and the link to the latest prototype. A design lead who returns after a few days reads the summary instead of the chat.
+
 1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder.
 2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
 3. **Research and options.** Brief the researcher on the decision, and the front-end engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
@@ -160,7 +162,7 @@ Read each guide once in a session, when the work needs it:
 
 ## The Now view
 
-The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a sub-agent starts, and `/now` opens it at any time.
+The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane, under the project summary that `set_project` sets: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a sub-agent starts, and `/now` opens it at any time.
 
 `.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
 

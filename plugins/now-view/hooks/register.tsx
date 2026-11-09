@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { AgentInfo, EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { Flag, Run, RunStatus } from '../types'
+import type { Flag, Project, Run, RunStatus } from '../types'
 import { LOCAL, VERSION } from './build'
 
 const PANE = 'now-view'
@@ -24,11 +24,15 @@ const runs = atom({ plugin: 'now-view', key: 'runs' } as const, [], {
 })
 const flags = atom({ plugin: 'now-view', key: 'flags' } as const, [], { shape: 'flags-1' })
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
+const project = atom({ plugin: 'now-view', key: 'project' } as const, null, { shape: 'project-1' })
+// The projects kept for a folder: the latest for each chat, at most this many.
+const PROJECTS = 20
 
 // The tools the designer calls to flag a question for the design lead, and to
 // clear the flag once the design lead answers it.
 const FLAG_TOOL = 'mcp__now-view__flag_for_design_lead'
 const RESOLVE_TOOL = 'mcp__now-view__resolve_flag'
+const PROJECT_TOOL = 'mcp__now-view__set_project'
 
 // The ids already looked up in the session's agent list, so a run the list
 // does not hold, such as a workflow's, is looked up once.
@@ -39,6 +43,7 @@ const looked = new Set<string>()
 let sessionId: string | undefined
 let storeKey: string | undefined
 let flagsKey: string | undefined
+let projectKey: string | undefined
 
 // The team's names for the agent types the designer gives tasks to.
 const ROLE: Record<string, string> = {
@@ -74,6 +79,7 @@ function step(e: { tool: string }): string {
   if (said) return said.length > 120 ? `${said.slice(0, 119)}…` : said
   if (e.tool === FLAG_TOOL) return 'Flagging a question for you'
   if (e.tool === RESOLVE_TOOL) return 'Clearing an answered question'
+  if (e.tool === PROJECT_TOOL) return 'Updating the project summary'
   if (e.tool.startsWith('mcp__')) {
     const service = (e.tool.split('__')[1] ?? '')
       .replace(/^(claude_ai_|plugin_[^_]+_)/, '')
@@ -313,7 +319,17 @@ async function loadHistory($: EngineInterface): Promise<void> {
   const root = await $.session.root().catch(() => undefined)
   storeKey = root ? `runs:${root}` : undefined
   flagsKey = root ? `flags:${root}` : undefined
+  projectKey = root ? `project:${root}` : undefined
   if (!storeKey) return
+  const keptProjects = await $.store.get(`project:${root}`).catch(() => undefined)
+  if (Array.isArray(keptProjects) && keptProjects.length > 0) {
+    // This chat's project, or else the one set most recently in the folder.
+    const all = (keptProjects as Project[])
+      .filter(one => typeof one?.name === 'string' && typeof one.goal === 'string' && typeof one.at === 'number')
+      .sort((a, b) => a.at - b.at)
+    const mine = all.filter(one => one.sessionId === sessionId).at(-1) ?? all.at(-1)
+    if (mine) await update($, project, current => current ?? mine)
+  }
   const keptFlags = await $.store.get(`flags:${root}`).catch(() => undefined)
   if (Array.isArray(keptFlags)) {
     await update($, flags, list => {
@@ -367,6 +383,18 @@ async function saveFlags($: EngineInterface): Promise<void> {
   await $.store.set(flagsKey, kept).catch(() => undefined)
 }
 
+// Keeps the chat's project in the store, beside the latest project of each
+// other chat in the folder.
+async function saveProject($: EngineInterface, value: Project): Promise<void> {
+  if (!projectKey) return
+  const stored = await $.store.get(projectKey).catch(() => undefined)
+  const others = (Array.isArray(stored) ? (stored as Project[]) : []).filter(
+    one => typeof one?.name === 'string' && one.sessionId !== value.sessionId,
+  )
+  const kept = [...others, value].sort((a, b) => a.at - b.at).slice(-PROJECTS)
+  await $.store.set(projectKey, kept).catch(() => undefined)
+}
+
 // The last part of a path, which names the file without the folders above it.
 function shortPath(path: string): string {
   return path.split('/').filter(Boolean).slice(-2).join('/')
@@ -408,6 +436,32 @@ export const register: Register = on => {
         type: 'object',
         properties: { id: { type: 'string', description: 'The flag id, such as F3.' } },
         required: ['id'],
+      },
+      isDeferred: false,
+    }).catch(() => undefined)
+    await $.tool.register({
+      name: 'set_project',
+      description:
+        "Sets the project summary at the top of the Now pane, so the design lead can see what the project is after time away, without reading the chat. Call it when the project is scoped, when a stage starts, and after each version, with what happens next. Fields left out keep their earlier value.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The issue and the project name, such as "ABC-123 · Billing page".',
+          },
+          goal: { type: 'string', description: 'One sentence on what the project is doing.' },
+          stage: {
+            type: 'string',
+            description: 'The stage and the version, such as "Prototype, version 3".',
+          },
+          next: {
+            type: 'string',
+            description:
+              'What happens next, in one sentence. Name the design lead when it waits on them.',
+          },
+          link: { type: 'string', description: 'The URL of the latest prototype or document.' },
+        },
       },
       isDeferred: false,
     }).catch(() => undefined)
@@ -539,6 +593,25 @@ export const register: Register = on => {
     return { result: `${id} is cleared from the Now pane.` }
   })
 
+  on('tool.call', { tool: PROJECT_TOOL }, async ($, e) => {
+    const input = e as unknown as Partial<Record<'name' | 'goal' | 'stage' | 'next' | 'link', unknown>>
+    const given: Partial<Project> = {}
+    for (const field of ['name', 'goal', 'stage', 'next', 'link'] as const) {
+      const value = input[field]
+      if (typeof value === 'string' && value.trim()) given[field] = value.trim()
+    }
+    const current = await read($, project)
+    const merged = { ...current, ...given }
+    if (!merged.name || !merged.goal) {
+      return { result: 'No project set: give a name and a goal the first time.' }
+    }
+    const value: Project = { ...merged, name: merged.name, goal: merged.goal, at: await $.clock.now(), sessionId }
+    await update($, project, () => value)
+    await saveProject($, value)
+
+    return { result: 'The Now pane shows the project summary.' }
+  })
+
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
     if (id !== undefined) await seen($, id)
@@ -595,6 +668,7 @@ export const register: Register = on => {
     const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, runs)
     const waiting = (await read($, flags)).filter(one => one.resolvedAt === undefined)
+    const about = await read($, project)
     const openId = await read($, selected)
     const open = list.find(one => one.id === openId)
     const now = await $.clock.now()
@@ -701,6 +775,28 @@ export const register: Register = on => {
       </Box>
     )
 
+    // What the project is: the first thing the design lead reads after time away.
+    const header = about ? (
+      <Box flexDirection="column">
+        <Text bold wrap="wrap">
+          {about.name.toUpperCase()}
+        </Text>
+        <Text wrap="wrap">{about.goal}</Text>
+        <Box height={1} />
+        {about.stage && field('STAGE', about.stage)}
+        {about.next && field('NEXT', about.next)}
+        {about.link && field('OPEN', <Link href={about.link} label={about.link.replace(/^https?:\/\//, '')} />)}
+        {field('UPDATED', stamp(about.at, now), true)}
+      </Box>
+    ) : (
+      <Box flexDirection="column">
+        <Text bold>NO PROJECT YET</Text>
+        <Text dimColor wrap="wrap">
+          The designer names the project here, with its goal and what comes next.
+        </Text>
+      </Box>
+    )
+
     const started = (run: Run) =>
       run.seenLate
         ? run.status === 'running'
@@ -786,6 +882,8 @@ export const register: Register = on => {
 
     if (list.length === 0) {
       return page(
+        header,
+        gap('header'),
         band,
         gap('empty'),
         <Text bold>No tasks yet</Text>,
@@ -800,6 +898,8 @@ export const register: Register = on => {
     }
 
     return page(
+      header,
+      gap('header'),
       band,
       gap('running'),
       // The section titles stay dim, so the cards hold the eye.

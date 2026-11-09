@@ -42,12 +42,30 @@ export type Flag = {
   resolvedAt?: number
 }
 
+// What the project is, for a design lead who comes back after a few days. The
+// designer sets it with set_project at the start and at each stage.
+export type Project = {
+  // The issue and the project's name, such as "ABC-123 · Billing page".
+  name: string
+  // One sentence on what the project is doing.
+  goal: string
+  stage?: string
+  // What happens next, or what waits on the design lead.
+  next?: string
+  // The latest prototype or document to open.
+  link?: string
+  at: number
+  // The chat that set it, so each chat in the folder shows its own project.
+  sessionId?: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'now-view': {
       runs: Shaped<Run[]>
       flags: Shaped<Flag[]>
       selected: string | null
+      project: Shaped<Project | null>
     }
   }
 }
