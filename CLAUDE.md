@@ -55,7 +55,7 @@ A full-stack engineer for backend changes is planned. Until it exists, the front
 
 A project runs in stages. The design lead approves each stage before the next one starts.
 
-Keep the project summary at the top of the Now view current. Call `set_project` when the project is scoped, when each stage starts, and after each version, with the issue and the project name, the goal in one sentence, the stage and the version, what happens next, and the link to the latest prototype. A design lead who returns after a few days reads the summary instead of the chat.
+Keep the project summary at the top of the Now view current. Call `set_project` when the project is scoped, when each stage starts, and after each version, with the issue and the project name, the goal in one sentence, the stage and the version in a few words, what happens next, and the link to the latest prototype. The pane shows the name and the goal at the top, the stage beside the designer, and what happens next under the designer's latest turn. A design lead who returns after a few days reads these instead of the chat.
 
 1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder.
 2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.

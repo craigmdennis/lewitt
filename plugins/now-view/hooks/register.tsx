@@ -462,7 +462,7 @@ export const register: Register = on => {
           goal: { type: 'string', description: 'One sentence on what the project is doing.' },
           stage: {
             type: 'string',
-            description: 'The stage and the version, such as "Prototype, version 3".',
+            description: 'The stage and the version in a few words, such as "Prototype, v3".',
           },
           next: {
             type: 'string',
@@ -729,23 +729,15 @@ export const register: Register = on => {
 
     // What needs the design lead: each open flag, newest last, with the task it
     // comes from.
-    const band = (
+    const band = waiting.length > 0 && (
       <Box
-        borderStyle={waiting.length > 0 ? 'bold' : 'single'}
-        borderColor={waiting.length > 0 ? 'warning' : undefined}
-        borderDimColor={waiting.length === 0}
+        borderStyle="bold"
+        borderColor="warning"
+        marginTop={1}
         flexDirection="column"
         paddingX={1}
       >
-        {waiting.length === 0 ? (
-          <Box flexDirection="column">
-            <Text bold>NOTHING NEEDS YOU</Text>
-            <Text dimColor wrap="wrap">
-              A question for you shows here first.
-            </Text>
-          </Box>
-        ) : (
-          <Box flexDirection="column">
+        <Box flexDirection="column">
             <Text bold color="warning">
               {waiting.length === 1 ? '1 THING NEEDS YOU' : `${waiting.length} THINGS NEED YOU`}
             </Text>
@@ -780,7 +772,6 @@ export const register: Register = on => {
               )
             })}
           </Box>
-        )}
       </Box>
     )
 
@@ -790,21 +781,28 @@ export const register: Register = on => {
         <Text bold wrap="wrap">
           {about.name.toUpperCase()}
         </Text>
-        <Text wrap="wrap">{about.goal}</Text>
-        <Box height={1} />
-        {about.stage && field('STAGE', about.stage)}
-        {about.next && field('NEXT', about.next)}
-        {about.link && field('OPEN', <Link href={about.link} label={about.link.replace(/^https?:\/\//, '')} />)}
-        {field('UPDATED', stamp(about.at, now), true)}
+        <Text dimColor wrap="wrap">
+          {about.goal}
+        </Text>
       </Box>
     ) : (
       <Box flexDirection="column">
         <Text bold>NO PROJECT YET</Text>
         <Text dimColor wrap="wrap">
-          The designer names the project here, with its goal and what comes next.
+          The designer names the project here, with its goal.
         </Text>
       </Box>
     )
+
+    // The project's stage, after the role on the designer's rows.
+    const stageTag = (run: Run) =>
+      run.type === DESIGNER && about?.stage ? (
+        <Box flexShrink={1} marginLeft={1}>
+          <Text dimColor wrap="truncate-end">
+            · {about.stage.toUpperCase()}
+          </Text>
+        </Box>
+      ) : null
 
     const started = (run: Run) =>
       run.seenLate
@@ -922,7 +920,6 @@ export const register: Register = on => {
     if (list.length === 0) {
       return page(
         header,
-        gap('header'),
         band,
         gap('empty'),
         <Text bold>No tasks yet</Text>,
@@ -938,7 +935,6 @@ export const register: Register = on => {
 
     return page(
       header,
-      gap('header'),
       band,
       gap('running'),
       // The section titles stay dim, so the cards hold the eye.
@@ -953,6 +949,8 @@ export const register: Register = on => {
                 {role(run.type)}
               </Text>
             </Button>
+            {stageTag(run)}
+            <Box flexGrow={1} />
             {Client ? (
               <Client
                 key={`working-${run.id}`}
@@ -977,6 +975,8 @@ export const register: Register = on => {
             <Button key={run.id} plain onPress={() => update($, selected, () => run.id)}>
               {role(run.type)}
             </Button>
+            {run === latest && stageTag(run)}
+            <Box flexGrow={1} />
             <Box flexShrink={0} marginLeft={1}>
               {waiting.some(flag => flag.agentId === run.id) ? (
                 <Text bold color="warning">
@@ -993,6 +993,14 @@ export const register: Register = on => {
           <Box paddingLeft={4}>
             <Text wrap="wrap">{run.type === DESIGNER ? didWhat(run) : run.description}</Text>
           </Box>
+          {run === latest && about?.next && (
+            <Box paddingLeft={4}>{field('NEXT', about.next)}</Box>
+          )}
+          {run === latest && about?.link && (
+            <Box paddingLeft={4}>
+              {field('OPEN', <Link href={about.link} label={about.link.replace(/^https?:\/\//, '')} />)}
+            </Box>
+          )}
           {run.type === DESIGNER && produced(run) && (
             <Box paddingLeft={4}>
               <Text dimColor wrap="wrap">

@@ -93,7 +93,7 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  expect(await ui.find({ type: 'Text', text: /NEEDS YOU$/ })).toBeUndefined()
   await ui.unmount()
 
   await $.agent.spawn({ prompt: 'Write the toast copy.', description: 'Toast copy', subagentType: 'copywriter' })
@@ -123,7 +123,7 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   const resolved = await $.tool.call({ tool: 'mcp__now-view__resolve_flag', id: 'F1' })
   expect(String(resolved.result)).toContain('F1 is cleared')
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  expect(await ui.find({ type: 'Text', text: /NEEDS YOU$/ })).toBeUndefined()
   await ui.unmount()
 
   // "Done" in the pane clears a flag the design lead answered in the chat.
@@ -133,7 +133,7 @@ test('a flag from the designer shows at the top until it is resolved', async ($,
   })
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'answered-F2' })
-  expect((await ui.find({ type: 'Text', text: /NEEDS YOU$/ }))?.text).toBe('NOTHING NEEDS YOU')
+  expect(await ui.find({ type: 'Text', text: /NEEDS YOU$/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -388,6 +388,8 @@ test("the designer's turn shows its step while it runs, and its latest turn alwa
 
 test('the project summary shows at the top, and a new chat in the folder reads it from the store', async ($, on) => {
   const kept: Record<string, unknown> = {}
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', () => ({ text: '' }))
   on('command.register', () => ({ value: { command: 'now' } }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__now-view__${e.name}` } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
@@ -421,7 +423,18 @@ test('the project summary shows at the top, and a new chat in the folder reads i
   ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /BILLING PAGE/ }))?.text).toBe('ABC-1 · BILLING PAGE')
   expect((await ui.find({ type: 'Text', text: /next invoice/ }))?.text).toBe('Show what the next invoice will be.')
-  expect((await ui.find({ type: 'Text', text: /^Scope$/ }))?.text).toBe('Scope')
+  // The stage and what comes next sit on the designer's latest row.
+  expect(await ui.find({ type: 'Text', text: /two layouts/ })).toBeUndefined()
+  await ui.unmount()
+
+  await $.turn.start({ text: 'Build version 1.', turnId: 'm1' })
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^· SCOPE$/ }))?.text).toBe('· SCOPE')
+  await ui.unmount()
+  await $.turn.complete({ answer: 'Version 1 is ready.', durationMs: 1000, isAborted: false, turnId: 'm1', reason: 'answer' })
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^· SCOPE$/ }))?.text).toBe('· SCOPE')
+  expect((await ui.find({ type: 'Text', text: /^Version 1/ }))?.text).toBe('Version 1 is ready.')
   expect((await ui.find({ type: 'Text', text: /two layouts/ }))?.text).toBe('You pick one of two layouts.')
   await ui.unmount()
 
