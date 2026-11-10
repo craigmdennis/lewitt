@@ -71,7 +71,8 @@ Write `notes/research.md` from `templates/notes/research.md`, then ask for:
 2. **Metric definitions** the team uses, and where they are written down.
 3. **Data caveats:** internal and test accounts to exclude, known gaps, and the page that lists the caveats.
 4. **A data skill**, if the company has one for its warehouse.
-5. **Other sources,** such as a survey tool, support tickets or a research repository.
+5. **Issue trackers:** each tool where the team logs issues, ideas and decisions, and each tool that links issues to code, docs or support tickets. The researcher searches them for prior work at the start of each project.
+6. **Other sources,** such as a survey tool, support tickets or a research repository.
 
 ## 6. Skills and terms
 

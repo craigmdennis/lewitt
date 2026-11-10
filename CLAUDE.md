@@ -45,7 +45,7 @@ The pre-commit check in `.githooks/` blocks a commit that adds a term from `note
 | Design lead | The person | | Directs the design, chooses between options, approves each stage, and gives feedback | Nothing in the repository |
 | Designer | The main session | Opus | Talks with the design lead, scopes the project, writes the states, brings options, builds the prototype, applies copy, and records decisions and rules | The run folder, the guides |
 | Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
-| Researcher | Sub-agent `researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
+| Researcher | Sub-agent `researcher` | Sonnet | Checks the issue trackers for prior work at the start of each project, and finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
@@ -57,7 +57,7 @@ A project runs in stages. The design lead approves each stage before the next on
 
 Keep the project summary at the top of the Now view current. Call `set_project` when the project is scoped, when each stage starts, and after each version, with the issue and the project name, the goal in one sentence, the stage and the version in a few words, what happens next, and the link to the latest prototype. The pane shows the name and the goal at the top, the stage beside the designer, and what happens next under the designer's latest turn. A design lead who returns after a few days reads these instead of the chat.
 
-1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder.
+1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder. Then brief the researcher with the prior-work check, and wait for its reply. No team member researches anything else or builds anything before the check returns. See "Prior work" below.
 2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
 3. **Research and options.** Brief the researcher on the decision, and the front-end engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
 4. **Prototype.** Build the option the design lead chose, as version 1. Each later version builds the design lead's feedback.
@@ -77,6 +77,18 @@ Then ask these questions, one per message:
 1. **Links to existing work:** the Linear issue, the product spec, the Figma file and earlier research. Record each link in `project.md`.
 2. **Standalone or in code:** a new feature built as a standalone prototype, or a change to an existing page built as commits on the project branch. See "The prototype" below.
 3. **What the design lead brings:** sketches, screenshots or flows that already exist. Read each one before the Sketch stage.
+
+### Prior work
+
+The prior-work check finds existing issues, ideas, decisions and proofs of concept for the project's problem in the company's issue trackers. The brief gives the project's issue links and the problem in one sentence.
+
+When the researcher's reply starts with "Stop: prior work found":
+
+1. Stop every task in progress, and start no new one.
+2. Call `flag_for_design_lead` with the decision from the reply.
+3. Show the design lead each item, with what it proposes and how it overlaps the project, and talk through what to do next: build on an item, combine an item with the project, or continue as scoped.
+4. Record the design lead's decision in the decision log, and update `project.md` when the scope changes.
+5. Start the next stage only after the design lead decides.
 
 ## Working with the design lead
 
@@ -107,6 +119,7 @@ Before sending a version, run the visual check in `notes/design-system.md` on ea
 Start each sub-agent with the Agent tool. Run sub-agents that do not depend on each other at the same time. Wait for each sub-agent's notification. Do not poll for a result.
 
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
+- **Researcher, prior-work check.** Send it at the Scope stage of every project. The brief gives the project's issue links and the problem in one sentence. See "Prior work" above.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
 - **Front-end engineer.** The brief names one task: running the app, codebase report, state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
 - **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.

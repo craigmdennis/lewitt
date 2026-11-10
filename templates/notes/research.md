@@ -25,6 +25,14 @@ Fill in this guide for your company, and save it as `notes/research.md`. The res
 
 `<The skill for the company's warehouse, if one exists. Add it to the researcher's skills list to preload it.>`
 
+### Issue trackers
+
+The researcher searches each one for prior work at the start of each project.
+
+| Tool | Access | What it holds |
+|---|---|---|
+| `<tool>` | `<server, CLI or link>` | `<issues, ideas, decisions, or links from issues to code, docs and support tickets>` |
+
 ### Other sources
 
 | Source | Access | Use |
