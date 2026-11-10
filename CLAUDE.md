@@ -162,7 +162,7 @@ Read each guide once in a session, when the work needs it:
 
 ## The Now view
 
-The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane, under the project summary that `set_project` sets: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a sub-agent starts, and `/now` opens it at any time.
+The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane, under the project summary that `set_project` sets: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a session starts, at the first prompt when the terminal was too narrow at the start, and when a sub-agent starts. Once the design lead closes it, it stays closed in that chat until `/now` opens it again.
 
 `.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
 

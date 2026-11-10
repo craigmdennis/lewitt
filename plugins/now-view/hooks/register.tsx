@@ -25,6 +25,7 @@ const runs = atom({ plugin: 'now-view', key: 'runs' } as const, [], {
 const flags = atom({ plugin: 'now-view', key: 'flags' } as const, [], { shape: 'flags-1' })
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
 const project = atom({ plugin: 'now-view', key: 'project' } as const, null, { shape: 'project-1' })
+const dismissed = atom({ plugin: 'now-view', key: 'dismissed' } as const, false)
 // The projects kept for a folder: the latest for each chat, at most this many.
 const PROJECTS = 20
 
@@ -404,6 +405,16 @@ async function saveProject($: EngineInterface, value: Project): Promise<void> {
   await $.store.set(projectKey, kept).catch(() => undefined)
 }
 
+// Opens the pane, unless it shows already or the design lead closed it in this
+// chat. An open the person did not ask for is placed only on a wide terminal;
+// one made while their prompt is handled is placed at any width.
+async function openUnlessClosed($: EngineInterface): Promise<void> {
+  if (await read($, dismissed)) return
+  const panes = await $.ui.panes().catch(() => [])
+  if (panes.some(one => one.id === PANE && one.isPlaced)) return
+  await $.ui.open({ id: PANE, title: TITLE }).catch(() => undefined)
+}
+
 // The last part of a path, which names the file without the folders above it.
 function shortPath(path: string): string {
   return path.split('/').filter(Boolean).slice(-2).join('/')
@@ -477,6 +488,20 @@ export const register: Register = on => {
     await loadHistory($).catch(() => undefined)
     await catchUp($)
     await save($)
+    void openUnlessClosed($)
+
+    return next(e)
+  })
+
+  // The first prompt of a chat opens the pane at any width, before work begins.
+  on('prompt.submit', async ($, e, next) => {
+    if (!e.command) await openUnlessClosed($)
+
+    return next(e)
+  })
+
+  on('ui.close', async ($, e, next) => {
+    if (e.id === PANE && e.origin.kind === 'person') await update($, dismissed, () => true)
 
     return next(e)
   })
@@ -484,6 +509,7 @@ export const register: Register = on => {
   on('command.run', { command: 'now' }, async $ => {
     await catchUp($).catch(() => undefined)
     await save($)
+    await update($, dismissed, () => false)
     await $.ui.open({ id: PANE, title: TITLE })
 
     return { text: 'Now pane opened.' }

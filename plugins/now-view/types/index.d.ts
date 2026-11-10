@@ -66,6 +66,9 @@ declare module 'claude-code' {
       flags: Shaped<Flag[]>
       selected: string | null
       project: Shaped<Project | null>
+      // True once the design lead closed the pane in this chat, so it does not
+      // open again on its own.
+      dismissed: boolean
     }
   }
 }

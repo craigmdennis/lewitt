@@ -440,3 +440,30 @@ test('the project summary shows at the top, and a new chat in the folder reads i
 
   expect(Array.isArray(kept['project:/project'])).toBe(true)
 })
+
+test('the pane opens when the session starts and at the first prompt, and not again once it shows', async ($, on) => {
+  const opened: string[] = []
+  let placed = false
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+  on('ui.panes', () => ({
+    value: placed ? [{ id: 'now-view', title: 'Now', isShown: true, isFocused: false, isPlaced: true }] : [],
+  }))
+  on('ui.open', (_, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: false, reason: 'narrow' } }
+  })
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit({ text: 'Start a project for the billing page.' })
+  expect(opened.length).toBe(2)
+
+  placed = true
+  await $.prompt.submit({ text: 'Next step.' })
+  expect(opened.length).toBe(2)
+
+})
