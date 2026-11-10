@@ -45,15 +45,44 @@ test('the footer shows the version', async ($, on) => {
   await ui.unmount()
 })
 
-test('a new chat lists the tasks of earlier chats in the project, with team names', async ($, on) => {
+test("a new chat lists the earlier tasks of its own project, and not another project's", async ($, on) => {
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
-  on('session.messages', () => ({ value: [] }))
+  // The chat set its project in its transcript, as a resumed chat has.
+  on('session.messages', () => ({
+    value: [
+      {
+        role: 'assistant',
+        text: '',
+        toolUses: [
+          { tool: 'mcp__now-view__set_project', input: { name: 'ABC-1 · Billing page', goal: 'Show the next invoice.' } },
+        ],
+      },
+    ],
+  }))
   on('session.id', () => ({ value: 'chat-2' }))
   on('session.root', () => ({ value: '/project' }))
-  on('store.get', () => ({
-    value: [
+  on('store.get', (_, e) => ({
+    value: e.key.startsWith('project:')
+      ? [
+          { name: 'ABC-1 · Billing page', goal: 'Show the next invoice.', at: 1, sessionId: 'chat-1' },
+          { name: 'XYZ-9 · Other project', goal: 'Something else.', at: 2, sessionId: 'chat-9' },
+        ]
+      : e.key.startsWith('flags:')
+        ? [{ id: 'F1', question: 'A question from the other project?', at: 2, sessionId: 'chat-9' }]
+        : [
+      {
+        id: 'x9',
+        type: 'copywriter',
+        description: 'Copy for the other project',
+        brief: 'Write it.',
+        status: 'done',
+        toolCount: 2,
+        startedAt: Date.UTC(2026, 10, 3, 11, 0),
+        endedAt: Date.UTC(2026, 10, 3, 11, 1),
+        sessionId: 'chat-9',
+      },
       {
         id: 'f1',
         type: 'fork',
@@ -73,8 +102,11 @@ test('a new chat lists the tasks of earlier chats in the project, with team name
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /BILLING PAGE/ }))?.text).toBe('ABC-1 · BILLING PAGE')
   expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
   expect((await ui.find({ text: /DESIGN PARTNER/ }))?.text).toContain('DESIGN PARTNER')
+  expect(await ui.find({ type: 'Text', text: /other project/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /NEEDS YOU/ })).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: /^FINISHED IN 6 MIN/ }))?.text).toBe('FINISHED IN 6 MIN, NOV 3')
   await ui.unmount()
 })

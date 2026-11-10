@@ -45,6 +45,9 @@ let sessionId: string | undefined
 let storeKey: string | undefined
 let flagsKey: string | undefined
 let projectKey: string | undefined
+// The project each chat in the folder set, from the store, for runs and flags
+// kept before they carried their project.
+const sessionProjects = new Map<string, string>()
 
 // The team's names for the agent types the designer gives tasks to.
 const ROLE: Record<string, string> = {
@@ -332,13 +335,17 @@ async function loadHistory($: EngineInterface): Promise<void> {
   projectKey = root ? `project:${root}` : undefined
   if (!storeKey) return
   const keptProjects = await $.store.get(`project:${root}`).catch(() => undefined)
-  if (Array.isArray(keptProjects) && keptProjects.length > 0) {
-    // This chat's project, or else the one set most recently in the folder.
-    const all = (keptProjects as Project[])
-      .filter(one => typeof one?.name === 'string' && typeof one.goal === 'string' && typeof one.at === 'number')
-      .sort((a, b) => a.at - b.at)
-    const mine = all.filter(one => one.sessionId === sessionId).at(-1) ?? all.at(-1)
-    if (mine) await update($, project, current => current ?? mine)
+  const all = (Array.isArray(keptProjects) ? (keptProjects as Project[]) : [])
+    .filter(one => typeof one?.name === 'string' && typeof one.goal === 'string' && typeof one.at === 'number')
+    .sort((a, b) => a.at - b.at)
+  for (const one of all) if (one.sessionId) sessionProjects.set(one.sessionId, one.name)
+  // This chat's project: kept under its id, or else set by a set_project call
+  // in its transcript, as in a resumed chat. A new chat starts with none, so
+  // another project's summary never shows in it.
+  const mine = all.filter(one => one.sessionId === sessionId).at(-1) ?? (await fromTranscript($))
+  if (mine) {
+    await update($, project, current => current ?? mine)
+    if (sessionId) sessionProjects.set(sessionId, mine.name)
   }
   const keptFlags = await $.store.get(`flags:${root}`).catch(() => undefined)
   if (Array.isArray(keptFlags)) {
@@ -391,6 +398,38 @@ async function saveFlags($: EngineInterface): Promise<void> {
   for (const flag of await read($, flags)) byId.set(flag.id, flag)
   const kept = [...byId.values()].sort((a, b) => a.at - b.at).slice(-HISTORY)
   await $.store.set(flagsKey, kept).catch(() => undefined)
+}
+
+// The project the chat's own set_project calls set, merged in order.
+async function fromTranscript($: EngineInterface): Promise<Project | undefined> {
+  const main = await $.session.messages().catch(() => [])
+  const calls = (Array.isArray(main) ? main : [])
+    .flatMap(one => (one.role === 'assistant' ? one.toolUses : []))
+    .filter(use => use.tool === PROJECT_TOOL)
+  let merged: Partial<Project> = {}
+  for (const call of calls) {
+    const input = call.input as Partial<Record<'name' | 'goal' | 'stage' | 'next' | 'link', unknown>>
+    for (const field of ['name', 'goal', 'stage', 'next', 'link'] as const) {
+      const value = input[field]
+      if (typeof value === 'string' && value.trim()) merged = { ...merged, [field]: value.trim() }
+    }
+  }
+  if (!merged.name || !merged.goal) return undefined
+
+  return { ...merged, name: merged.name, goal: merged.goal, at: await $.clock.now(), sessionId }
+}
+
+// The project a run or a flag belongs to.
+function projectOf(item: { project?: string; sessionId?: string }): string | undefined {
+  return item.project ?? (item.sessionId ? sessionProjects.get(item.sessionId) : undefined)
+}
+
+// Whether a run or a flag belongs in this chat's pane: it is this chat's, or
+// an earlier chat's in the same project.
+function belongs(item: { project?: string; sessionId?: string }, name: string | undefined): boolean {
+  if (item.sessionId === sessionId) return true
+
+  return name !== undefined && projectOf(item) === name
 }
 
 // Keeps the chat's project in the store, beside the latest project of each
@@ -529,6 +568,7 @@ export const register: Register = on => {
       toolCount: 0,
       startedAt: await $.clock.now(),
       sessionId,
+      project: (await read($, project))?.name,
     }
     // The designer's turn in progress gave the task.
     await update($, runs, list =>
@@ -563,6 +603,7 @@ export const register: Register = on => {
         toolCount: 0,
         startedAt: at,
         sessionId,
+        project: (await read($, project))?.name,
       }
       await update($, runs, list => {
         // A turn that ended without turn.complete, as at a reload, is over.
@@ -597,7 +638,14 @@ export const register: Register = on => {
     if (!question) return { result: 'No flag: the question is empty.' }
     const known = await read($, flags)
     const id = `F${known.reduce((most, one) => Math.max(most, Number(one.id.slice(1)) || 0), 0) + 1}`
-    const flag: Flag = { id, question, agentId: input.agent_id, at: await $.clock.now() }
+    const flag: Flag = {
+      id,
+      question,
+      agentId: input.agent_id,
+      at: await $.clock.now(),
+      sessionId,
+      project: (await read($, project))?.name,
+    }
     await update($, flags, list => [...list, flag].slice(-HISTORY))
     await saveFlags($)
     await update($, runs, list =>
@@ -643,6 +691,15 @@ export const register: Register = on => {
     const value: Project = { ...merged, name: merged.name, goal: merged.goal, at: await $.clock.now(), sessionId }
     await update($, project, () => value)
     await saveProject($, value)
+    if (sessionId) sessionProjects.set(sessionId, value.name)
+    await update($, runs, list =>
+      list.map(one => (one.sessionId === sessionId ? { ...one, project: value.name } : one)),
+    )
+    await update($, flags, list =>
+      list.map(one => (one.sessionId === sessionId ? { ...one, project: value.name } : one)),
+    )
+    await save($)
+    await saveFlags($)
 
     return { result: 'The Now pane shows the project summary.' }
   })
@@ -701,9 +758,12 @@ export const register: Register = on => {
     const { Box, Text, Button, Markdown, Link } = elements
     // The animated working mark, where the surface draws a Client.
     const Client = 'Client' in elements ? elements.Client : undefined
-    const list = await read($, runs)
-    const waiting = (await read($, flags)).filter(one => one.resolvedAt === undefined)
     const about = await read($, project)
+    // This project's tasks and questions alone, of all the folder keeps.
+    const list = (await read($, runs)).filter(one => belongs(one, about?.name))
+    const waiting = (await read($, flags)).filter(
+      one => one.resolvedAt === undefined && belongs(one, about?.name),
+    )
     const openId = await read($, selected)
     const open = list.find(one => one.id === openId)
     const now = await $.clock.now()

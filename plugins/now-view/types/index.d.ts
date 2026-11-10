@@ -29,6 +29,8 @@ export type Run = {
   // The chat the run belongs to, so a later chat in the project lists it as
   // history.
   sessionId?: string
+  // The project its chat had set, so the pane lists it only in that project.
+  project?: string
 }
 
 // A question or decision the designer flagged for the design lead.
@@ -40,6 +42,9 @@ export type Flag = {
   agentId?: string
   at: number
   resolvedAt?: number
+  // The chat and the project that flagged it.
+  sessionId?: string
+  project?: string
 }
 
 // What the project is, for a design lead who comes back after a few days. The
