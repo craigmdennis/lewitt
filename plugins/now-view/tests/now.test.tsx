@@ -302,7 +302,8 @@ test('a run that started before the plugin loaded shows at its next tool call', 
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({
     value: [
-      { id: 'a9', description: 'Codebase report', type: 'frontend-engineer', status: 'running' },
+      // A plugin's agent type carries the plugin's name.
+      { id: 'a9', description: 'Codebase report', type: 'lewitt:frontend-engineer', status: 'running' },
     ],
   }))
   on('session.messages', () => ({

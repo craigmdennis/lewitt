@@ -64,8 +64,11 @@ const ROLE: Record<string, string> = {
   Plan: 'PLANNER',
 }
 
+// A plugin's agent type carries the plugin's name, as lewitt:copywriter does.
 function role(type: string): string {
-  return ROLE[type] ?? (type.split(':').at(-1) ?? type).replace(/[-_]/g, ' ').toUpperCase()
+  const bare = type.split(':').at(-1) ?? type
+
+  return ROLE[type] ?? ROLE[bare] ?? bare.replace(/[-_]/g, ' ').toUpperCase()
 }
 
 // What the pane needs of an agent, from the session's agent list or from an
