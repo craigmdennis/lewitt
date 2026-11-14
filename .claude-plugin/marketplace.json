@@ -3,6 +3,11 @@
   "owner": { "name": "Craig Dennis" },
   "plugins": [
     {
+      "name": "lewitt",
+      "source": "./plugins/lewitt",
+      "description": "A product design team in Claude Code: a designer session that scopes, prototypes and builds with copy, research and engineering sub-agents, in any folder set up with /lewitt:start"
+    },
+    {
       "name": "now-view",
       "source": "./plugins/now-view",
       "description": "A pane that lists each subagent run with its status, latest tool and elapsed time, and shows a run's brief and answer"

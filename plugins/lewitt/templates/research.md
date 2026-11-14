@@ -1,6 +1,6 @@
 ## Research sources
 
-Fill in this guide for your company, and save it as `notes/research.md`. The researcher reads it before its first task in a session.
+Fill in this guide for your company, and save it as `.lewitt/research.md`. The researcher reads it before its first task in a session.
 
 ### Units
 

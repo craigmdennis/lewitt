@@ -1,6 +1,6 @@
 # Lewitt
 
-A product design team in Claude Code. The design lead works live with the designer, who is the main Claude Code session. The designer hands copy, research and engineering to sub-agents. `CLAUDE.md` holds the guidelines for this way of working.
+A product design team in Claude Code, installed as a plugin. The design lead works live with the designer, who is the main Claude Code session. The designer hands copy, research and engineering to sub-agents. Lewitt runs in the product's own folder: set it up once with `/lewitt:start`, and every later session there starts as the designer.
 
 The name comes from Sol LeWitt, whose wall drawings were written instructions that other people drew.
 
@@ -16,26 +16,50 @@ Lewitt replaces an earlier setup that ran design projects through an orchestrati
 6. **Less upkeep.** Lewitt runs on Claude Code alone, with no server and no local patches.
 7. **Each agent keeps what it learns.** Each sub-agent has a memory file that persists across sessions and projects.
 
+## Install
+
+Run each command in a terminal, once per Mac:
+
+```sh
+claude plugin marketplace add craigmdennis/lewitt
+claude plugin install lewitt@lewitt
+```
+
+The `lewitt` plugin depends on `now-view`, so the second command installs the Now view too. Both install at user scope, so every session loads them, and `claude plugin update` brings each new version.
+
+## Use
+
+1. Open Claude Code in the product's folder, a git repository or a plain folder: `claude`.
+2. In a folder Lewitt has not set up, run `/lewitt:start`. It summarizes the folder, sets up `.lewitt/` with one question at a time, then asks what you want to do and scopes the first project.
+3. In a folder Lewitt has set up, start Claude Code the usual way. The session-start hook makes the session the designer, with each project in progress in its context.
+
+| Command | Does |
+|---|---|
+| `/lewitt:start` | Summarizes the folder, sets up `.lewitt/` when it is missing or incomplete, and starts a project |
+| `/lewitt:resume` | Reports the project, its stage, the open questions and what happens next, after time away |
+| `/lewitt:new-role` | Makes a role for this product, with expert knowledge researched on the web, in the product's `.claude/` |
+| `/lewitt:contribute` | Copies a role, a skill or a rule from the product into Lewitt's source repository, in general terms |
+| `/now` | Opens the Now view. `/now clear` removes the project's finished tasks |
+
+The researcher and the engineers read Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`, through the servers connected in your own Claude Code configuration. Each one is optional, and each one is read only. The setup reports which ones are connected.
+
 ## Roles
 
 | Role | Runs as | Model | Does | Writes |
 |---|---|---|---|---|
 | Design lead | The person | | Directs the design, chooses between options, approves each stage, and gives feedback | |
-| Designer | The main session | Opus | Talks with the design lead, scopes the project, writes the states, brings options, builds the prototype, applies copy, records decisions and rules, and opens pull requests after approval | The run folder, the guides |
-| Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
-| Researcher | Sub-agent `researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, Amplitude, a data warehouse, Notion and Linear, and rates its confidence in each finding | Its memory |
-| Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
-| macOS engineer | Sub-agent `macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| Designer | The main session | Opus | Talks with the design lead, scopes the project, writes the states, brings options, builds the prototype, applies copy, records decisions and rules, and opens pull requests after approval | The run folder, `.lewitt/` |
+| Copywriter | Sub-agent `lewitt:copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
+| Researcher | Sub-agent `lewitt:researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, Amplitude, a data warehouse, Notion and Linear, and rates its confidence in each finding | Its memory |
+| Front-end engineer | Sub-agent `lewitt:frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| macOS engineer | Sub-agent `lewitt:macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned.
 
-Each product uses the roles listed in `notes/roles.md`, which the first run writes. The design lead, the designer and the design partner are in every product. `CLAUDE.md` gives the steps to add a role.
+Each product uses the roles listed in its `.lewitt/roles.md`, which the setup writes. The design lead, the designer and the design partner are in every product. The built-in roles appear in every session's agent list, and the designer briefs only the ones a product lists. A role made with `/lewitt:new-role` is in the product's `.claude/agents/`, and only that product loads it.
 
-Two hooks hold each sub-agent to its column:
-
-- `memory-only-writes.py` blocks a write or an edit outside the sub-agent's memory and the folders its definition names.
-- `no-remote-writes.py` blocks each engineer's pushes and GitHub writes. The engineer returns those commands, and the designer runs them after the design lead approves.
+One plugin hook, `scope.py`, holds each role to its column. It blocks a write or an edit outside the role's memory and, for an engineer, the project's worktrees. It also blocks each role's pushes and GitHub writes: the engineer returns those commands, and the designer runs them after the design lead approves.
 
 ## The Now view
 
@@ -49,89 +73,30 @@ Two hooks hold each sub-agent to its column:
 
 The pane opens when a sub-agent starts, and `/now` opens it at any time. `/now clear` removes the project's finished tasks from the pane and from its stored history, and keeps the running tasks and the open questions. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
 
-To install it, run each command on its own, in this order.
-
-1. In a terminal, add the marketplace:
-
-   ```sh
-   claude plugin marketplace add craigmdennis/lewitt
-   ```
-
-2. In a terminal, install the plugin:
-
-   ```sh
-   claude plugin install now-view@lewitt
-   ```
-
-3. In the running session, load the plugin:
-
-   ```
-   /reload-plugins
-   ```
-
-4. In the running session, open the pane:
-
-   ```
-   /now
-   ```
+Installing Lewitt installs it. In a session that started before the install, type `/reload-plugins`, then `/now`.
 
 The pane also lists the sub-agents that started before `/reload-plugins`, from the session's transcript. A run that finished earlier shows how long it took. A run still working shows the time the pane first saw it, because its start time is not recorded.
 
 Run its test with `claude plugin test plugins/now-view`.
 
-To try a change to the pane before pushing it, run `scripts/now-view.sh local`, then type `/reload-plugins`. The script copies `plugins/now-view/` from this checkout into the installed plugin. The pane's footer then shows LOCAL with the commit it was copied from. `scripts/now-view.sh live` puts the version pushed to GitHub back, and `scripts/now-view.sh status` says which one is installed. The `now-view-source` skill runs the same script.
-
-## Contents
-
-| Path | Content |
-|---|---|
-| `CLAUDE.md` | The designer's guidelines: roles, stages, the prototype, briefs, pull requests, memory and rules |
-| `.claude/agents/` | The sub-agent roles: `copywriter.md`, `researcher.md` and `frontend-engineer.md` |
-| `.claude/skills/` | `copy-rules` for the copywriter, `research-methods` for the researcher, `now-view-source` to switch the installed Now view between this checkout and the pushed version |
-| `.claude/hooks/` | `memory-only-writes.py` and `no-remote-writes.py` |
-| `guides/` | Usability, visual design and UX writing principles |
-| `.githooks/` | The pre-commit check against the product's denylist |
-| `FIRST-RUN.md` | The setup the designer runs when `lewitt.env` or a guide in `notes/` is missing |
-| `templates/notes/` | The guides the first run fills in: the app, the design system, copy sources, research sources, pattern rules and skills |
-| `plugins/now-view/` | The Now view |
-| `scripts/` | `point-at.sh`, `now-view.sh`, and the prototype build, session and screenshot scripts |
-| `lewitt.env` | The pointers for this Mac. Ignored by git |
-| `worktrees/` | The app repository's worktrees, by default. Ignored by git |
-| `notes`, `.claude/agent-memory` | Links to `.lewitt/` in the app repository. Ignored by git |
-
-## Setup
-
-1. Install the Now view, as above.
-2. Open Claude Code in this repository. The designer finds no `notes` link and follows `FIRST-RUN.md`. It asks for the app repository, as an existing checkout or a git URL to clone, and runs `scripts/point-at.sh`. Then it reads the app repository, proposes each answer, and asks one question at a time.
-
-The researcher and the front-end engineer read Amplitude, Mobbin, Linear, Notion and a Snowflake server named `snowflake`. Each one is optional, and each one is read only. The first run reports which ones are connected.
+To try a change to the pane before pushing it, run `scripts/plugin-source.sh now-view local`, then type `/reload-plugins`. The pane's footer then shows LOCAL with the commit it was copied from. `live` puts the version pushed to GitHub back, and `status` says which one is installed.
 
 ## Where things live
 
-Lewitt works with the product's repositories where they already are, and creates no folder hierarchy of its own. This repository holds only the way of working.
+Lewitt works with the product's folder where it already is. This repository holds only the way of working.
 
 | What | Where |
 |---|---|
-| The pointers for this Mac: the app repository, its worktrees folder, the backend repository, Playwright and the session file | `lewitt.env` in this checkout |
-| The app repository's worktrees, one per project | `worktrees/` in this checkout by default, or a folder the repository already uses, set as `WORKTREES_DIR` |
-| The notes about the product: the app, the design system guidance, copy and research sources, pattern rules, company skills, the denylist and agent memory | `.lewitt/` in the app repository's main checkout, linked here as `notes` and `.claude/agent-memory` |
-| One project's files: scope, states, decision log, research, screenshots and the standalone prototype | `.lewitt-run/` in the project's worktree of the app repository |
+| The notes about the product: the roles, the app, the design system guidance, copy and research sources, pattern rules, company skills and agent memory | `.lewitt/` in the product's main checkout |
+| The pointers for this Mac: the plugin's folder, the worktrees folder, the backend repository, Playwright and the session file | `.lewitt/paths` |
+| The product's worktrees, one per project | `.lewitt/worktrees/` by default, or a folder the repository already uses, set as `WORKTREES_DIR` |
+| One project's files: scope, states, decision log, research, screenshots and the standalone prototype | `.lewitt-run/` in the project's worktree |
+| Roles and skills made for the product | `.claude/agents/` and `.claude/skills/` in the product |
 | Code | A branch in the project's worktree, shipped as a pull request |
+| Company terms kept out of this repository | `$HOME/.config/lewitt/denylist` |
 
-`scripts/point-at.sh` adds `.lewitt/` and `.lewitt-run/` to the app repository's `.git/info/exclude`. Git ignores both folders, and the repository's tracked files and its `.gitignore` stay unchanged.
+The setup adds `.lewitt/`, `.lewitt-run/` and each role it makes to the repository's `.git/info/exclude`. Git ignores them, and the repository's tracked files and its `.gitignore` stay unchanged.
 
-To work on another product, run `scripts/point-at.sh` with that product's repository. The two links and `APP_REPO` change, and each product keeps its own notes and agent memory. To change an answer from the first run, edit its file in `notes/`.
+## Working on Lewitt
 
-A change to the way of working, made during a product project, comes to this repository in general terms. `CLAUDE.md` lists which changes go where. The pre-commit check in `.githooks/` blocks a commit that adds a term from `notes/denylist`.
-
-## Starting a project
-
-Open Claude Code in this repository, and describe the project in the first message. For example:
-
-> New project: let people save a search as a filter they can reuse. The issue is <link>, and my sketch is in <link>.
-
-The first message can give the problem, the core flow, links to existing work, whether the prototype is standalone or in code, and any sketches. The designer asks for each part the message leaves out, one question at a time. With no project in mind yet, "Start a new project" works too.
-
-The designer runs the project-start checks in `CLAUDE.md`, asks before creating the project's worktree of the app repository, then writes `project.md` in its `.lewitt-run/` folder and asks the design lead to approve the scope.
-
-The Now view opens by itself when the first sub-agent starts. Run `/now` to open it earlier, or to open it again after closing it.
+`CLAUDE.md` in this repository covers changing Lewitt itself: where each part is, the rules for a change, the checks, and `scripts/plugin-source.sh` for trying a change before a push.

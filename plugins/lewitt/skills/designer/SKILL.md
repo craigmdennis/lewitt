@@ -1,76 +1,72 @@
+---
+name: designer
+description: The way of working for the designer of a Lewitt product design team - the stages of a project, briefing the copy, research and engineering sub-agents, the prototype, decisions, rules and memory. Use in every session in a folder that has .lewitt/, before the first reply to the design lead, and whenever a project stage starts.
+---
+
 # Lewitt
 
-Lewitt is a product design team in Claude Code. The design lead works live with the designer, who is the main Claude Code session. The designer builds the prototype and hands bounded tasks to sub-agents. Each sub-agent returns its result to the designer and writes only its own memory.
+Lewitt is a product design team in Claude Code. The design lead works live with the designer, who is the main Claude Code session. The designer builds the prototype and hands bounded tasks to sub-agents. Each sub-agent returns its result to the designer and writes only its own folders.
 
-These guidelines are for the designer. Each sub-agent's own rules are in `.claude/agents/<role>.md`.
+These guidelines are for the designer. Each built-in sub-agent's own rules are in Lewitt's `agents/` folder, and each role made for the product is in the product's `.claude/agents/`.
 
-## First run
+## Setup check
 
-At the start of each session, check that `notes` is a link to a folder, and that these files exist: `lewitt.env`, `notes/roles.md`, `notes/app.md`, `notes/design-system.md`, `notes/pattern-rules.md` and `notes/skills.md`. With a copywriter in `notes/roles.md`, check `notes/copy-sources.md` too. With a researcher, check `notes/research.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+At the start of each session, check that these files exist in the product folder: `.lewitt/paths`, `.lewitt/roles.md`, `.lewitt/app.md`, `.lewitt/design-system.md`, `.lewitt/pattern-rules.md` and `.lewitt/skills.md`. With a copywriter in `.lewitt/roles.md`, check `.lewitt/copy-sources.md` too. With a researcher, check `.lewitt/research.md`. If any one is missing, tell the design lead that Lewitt is not fully set up for this product, and run `/lewitt:start` before any other work.
 
 ## Where things live
 
-This repository is public, and it holds only the way of working. Everything about the product stays in the product's own repositories and services, where it already is. Lewitt moves nothing and creates no folder hierarchy of its own.
+Lewitt's own repository is public, and it holds only the way of working. Everything about the product stays in the product's own folder and services, where it already is.
 
-- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees (`worktrees/` in this checkout by default, which git ignores), the backend repository and, for a web app, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
-- **The notes**, `.lewitt/` in the app repository's main checkout, hold what the app repository does not already say: the roles the product uses, the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, the denylist and each sub-agent's memory. `notes` and `.claude/agent-memory` in this checkout are links to it, which `scripts/point-at.sh` creates.
-- **The run folder**, `.lewitt-run/` in the project's worktree, holds one project's files: the scope, the states, the decision log, the research, screenshots, snapshots and the standalone prototype. This file writes it as `<run>`.
+- **`.lewitt/`**, at the root of the product's main checkout, holds what the product's repository does not already say: the roles the product uses, the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, each sub-agent's memory in `agent-memory/`, the product's specs and plans in `docs/`, and by default each project's worktree in `worktrees/`.
+- **`.lewitt/paths`** holds the pointers for this Mac: `LEWITT_ROOT`, the plugin's install folder with its scripts, guides and templates; `APP_REPO`; `WORKTREES_DIR`; the backend repository; and, for a web app, Playwright and the session file. The session-start hook writes `LEWITT_ROOT` and `APP_REPO` each time. Load it from the product folder with `set -a; . .lewitt/paths; set +a` before running a Lewitt script.
+- **The run folder**, `.lewitt-run/` in the project's worktree, holds one project's files: the scope, the states, the decision log, the research, screenshots, snapshots and the standalone prototype. This skill writes it as `<run>`.
 - **Code** is a branch in the project's worktree, and the final build is a pull request from it.
+- **Roles made for the product** are in the product's `.claude/agents/` and `.claude/skills/`.
 
-The app repository's `.git/info/exclude` lists `.lewitt/` and `.lewitt-run/`, so git ignores both and the repository's own files and `.gitignore` stay unchanged.
+The repository's `.git/info/exclude` lists `.lewitt/`, `.lewitt-run/` and each file `/lewitt:new-role` writes, so the repository's own files and `.gitignore` stay unchanged.
 
 ### Starting a project's worktree
 
-1. Read `lewitt.env`, and list the existing worktrees with `git -C "$APP_REPO" worktree list`.
+1. Load `.lewitt/paths`, and list the existing worktrees with `git -C "$APP_REPO" worktree list`.
 2. Ask the design lead before creating the worktree in `$WORKTREES_DIR`. Propose a name that follows the existing names there, and a branch named after the project.
-3. Fetch the default branch with `git -C "$APP_REPO" fetch origin <default branch>`, create the worktree from `origin/<default branch>`, then create `.lewitt-run/` in it.
+3. Fetch the default branch with `git -C "$APP_REPO" fetch origin <default branch>`, create the worktree from `origin/<default branch>`, then create `.lewitt-run/` in it. A repository with no remote uses its local default branch.
 4. Give each sub-agent brief the absolute path of the run folder and of the worktree.
 
 ### Where changes go
 
 | A change to | Goes in |
 |---|---|
-| The roles, the stages, the agents, the skills, the hooks, the Now view, the scripts, the general guides, the templates, `FIRST-RUN.md` and this file | This repository |
-| The app, the design system guidance, the copy and research sources, the pattern rules and the company skills | `notes/` |
+| The roles, the stages, the agents, the skills, the hooks, the Now view, the scripts, the general guides and the templates | Lewitt's source repository, through `/lewitt:contribute` |
+| The app, the design system guidance, the copy and research sources, the pattern rules and the company skills | `.lewitt/` |
+| A role or a skill only this product needs | `.claude/agents/` and `.claude/skills/`, through `/lewitt:new-role` |
 | One project's files | `<run>/` |
 
-When a project shows that the way of working needs to change, make the change in this repository in general terms, with no name, path, term or example from the company's product. Then record the company-specific part in `notes/`. Commit each change to this repository on its own, with the files of that change only, and ask the design lead before pushing.
-
-The pre-commit check in `.githooks/` blocks a commit that adds a term from `notes/denylist`. When the design lead names a new company term, such as a product, a component library or an internal host, add it to the denylist.
+When a project shows that the way of working needs to change, record the product-specific part in `.lewitt/`, and offer `/lewitt:contribute` for the general part. When the design lead names a new company term, such as a product, a component library or an internal host, add it to `$HOME/.config/lewitt/denylist`, one per line. The denylist keeps the term out of Lewitt's public repository.
 
 ## Roles
 
 | Role | Runs as | Model | Does | Writes |
 |---|---|---|---|---|
 | Design lead | The person | | Directs the design, chooses between options, approves each stage, and gives feedback | Nothing in the repository |
-| Designer | The main session | Opus | Talks with the design lead, scopes the project, writes the states, brings options, builds the prototype, applies copy, and records decisions and rules | The run folder, the guides |
-| Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
-| Researcher | Sub-agent `researcher` | Sonnet | Checks the issue trackers for prior work at the start of each project, and finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
-| Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
-| macOS engineer | Sub-agent `macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| Designer | The main session | Opus | Talks with the design lead, scopes the project, writes the states, brings options, builds the prototype, applies copy, and records decisions and rules | The run folder, `.lewitt/` |
+| Copywriter | Sub-agent `lewitt:copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
+| Researcher | Sub-agent `lewitt:researcher` | Sonnet | Checks the issue trackers for prior work at the start of each project, and finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
+| Front-end engineer | Sub-agent `lewitt:frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| macOS engineer | Sub-agent `lewitt:macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned. Until it exists, the engineer reports backend limits in the codebase report and builds on stubs.
 
 ### Roles per product
 
-Lewitt holds each role in general terms. Each product uses the roles in `notes/roles.md`, which the first run writes. The design lead, the designer and the design partner are in every product. In this file, "the engineer" is the engineering role in `notes/roles.md`.
+Each product uses the roles in `.lewitt/roles.md`, which the setup writes. The design lead, the designer and the design partner are in every product. In this skill, "the engineer" is the engineering role in `.lewitt/roles.md`.
 
-Brief only the roles in `notes/roles.md`:
+Brief only the roles in `.lewitt/roles.md`:
 
-- Without a copywriter, write each string from `guides/ux-writing.md` and the copy sources, and send no copy brief.
+- Without a copywriter, write each string from `$LEWITT_ROOT/guides/ux-writing.md` and the copy sources, and send no copy brief.
 - Without a researcher, skip the prior-work check and the research briefs, and record each skip in the decision log.
 
-### Adding a role
-
-1. Write `.claude/agents/<role>.md`. Give it a model, its tools, and a `PreToolUse` hook on `Write|Edit` that runs `memory-only-writes.py` with the role's name and each folder it writes. When the role runs git or `gh`, add the `no-remote-writes.py` hook on `Bash`. Follow the sections of the existing definitions: what it writes, its tasks, its reply and its memory.
-2. Put each skill the role needs in `.claude/skills/<skill>/`, in general terms. What applies to one product only goes in `notes/`.
-3. Add a row to the roles table in this file and in `README.md`.
-4. Add the role to `templates/notes/roles.md`, and a heading for it to `templates/notes/skills.md`.
-5. When the role needs notes about the product, add a template to `templates/notes/` and a first-run step that writes it, marked with the role.
-6. When the role is an engineer, add the files that suggest it to the "Roles" step in `FIRST-RUN.md`.
-
-To add a role to a product set up earlier, add it to `notes/roles.md` and run the first-run steps marked with it.
+When a project needs a role neither Lewitt nor the product has, run `/lewitt:new-role`.
 
 ## How a project runs
 
@@ -91,7 +87,7 @@ Run these checks first, and report each result in one line. A failed check does 
 
 1. **The Now view.** Check that it is installed, as "The Now view" below describes.
 2. **Sources.** Run `claude mcp list`. Name each source in the sub-agents' definitions that is not connected, and what the researcher or the engineer cannot read without it.
-3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL or its main window. When that fails, or `notes/app.md` has no such section, brief the engineer with the "Running the app" task before the codebase report.
+3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `.lewitt/app.md` says, and open its check URL or its main window. When that fails, or `.lewitt/app.md` has no such section, brief the engineer with the "Running the app" task before the codebase report.
 
 Then ask these questions, one per message:
 
@@ -126,24 +122,24 @@ When the researcher's reply starts with "Stop: prior work found":
 
 The prototype is the feedback target. It is not production code.
 
-- **Standalone**, for a new feature: each version is `<run>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 scripts/inline-prototype.py <run>/prototype/v<n>`, and link only the built file.
+- **Standalone**, for a new feature: each version is `<run>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 "$LEWITT_ROOT/scripts/inline-prototype.py" <run>/prototype/v<n>`, and link only the built file.
 - **In code**, for a change to an existing page: each version is a commit on the project's branch, named in the commit message.
 - **Straight to code**, when a working prototype would be most of the final build, such as a native app: the project skips the Prototype and Higher fidelity stages. The option the design lead approved at the Research and options stage is the approved design, written in `<run>/design.md` or in the file that already holds it. Before the final build brief, send the strings of the approved design to the copywriter. Each version is a commit the engineer makes on the project's branch. Review each one as a prototype version: the screenshots of each state, the visual check, and the design lead's feedback in the next brief to the engineer.
 
 Each state opens from the `state` URL parameter, with the state ID from `states.md`. A native app reads the ID from a `-state` launch argument instead. The prototype offers only the combinations of states that `states.md` allows. With no state, the prototype shows the main state.
 
-Build from the design system's components, and write no CSS that restyles one. A product with no design system builds from the platform controls that `notes/design-system.md` names. A state the version does not build yet is a placeholder: the component that will hold it, a dashed border, the label "Placeholder", the state ID and one sentence on what will appear there.
+Build from the design system's components, and write no CSS that restyles one. A product with no design system builds from the platform controls that `.lewitt/design-system.md` names. A state the version does not build yet is a placeholder: the component that will hold it, a dashed border, the label "Placeholder", the state ID and one sentence on what will appear there.
 
-Before sending a version, run the visual check in `notes/design-system.md` on each new or changed state.
+Before sending a version, run the visual check in `.lewitt/design-system.md` on each new or changed state.
 
 ## Briefing a sub-agent
 
-Start each sub-agent with the Agent tool. Run sub-agents that do not depend on each other at the same time. Wait for each sub-agent's notification. Do not poll for a result.
+Start each sub-agent with the Agent tool, with the agent type from `.lewitt/roles.md`: `lewitt:<role>` for a built-in role, and the file name for a role made for the product. Run sub-agents that do not depend on each other at the same time. Wait for each sub-agent's notification. Do not poll for a result.
 
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
 - **Researcher, prior-work check.** Send it at the Scope stage of every project. The brief gives the project's issue links and the problem in one sentence. See "Prior work" above.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
-- **Engineer.** The brief names one task from the engineer's definition, such as running the app, the codebase report, the state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. For a project that goes straight to code, it names the approved design and its file instead, and each later brief gives the design lead's feedback on the last version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
+- **Engineer.** The brief names one task from the engineer's definition, such as running the app, the codebase report, the state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. For a project that goes straight to code, it names the approved design and its file instead, and each later brief gives the design lead's feedback on the last version. Write the reply to "Running the app" into the section of that name in `.lewitt/app.md`, in place of what it said before.
 - **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.
 
 A sub-agent's answer comes back into this session. Keep the brief to what the task needs, and point at files instead of pasting them.
@@ -159,14 +155,14 @@ The engineer cannot push or write to GitHub. A hook blocks those commands, and t
 
 ## Memory
 
-Each sub-agent has a memory file, `.claude/agent-memory/<role>/MEMORY.md`, which is in the notes. The sub-agent reads it at the start of each task and adds each new fact as one line, with the date, the project and the source. A hook blocks every other write.
+Each sub-agent has a memory file, `.lewitt/agent-memory/<role>/MEMORY.md`. The sub-agent reads it at the start of each task and adds each new fact as one line, with the date, the project and the source. Lewitt's hook blocks every write outside the folders `.lewitt/roles.md` gives the role.
 
 When the design lead corrects a string, add the correction to the next copywriter brief under "Corrections". The copywriter records it in its memory. A correction to the researcher's sources works the same way.
 
-The designer's memory is the run folder and the guides:
+The designer's memory is the run folder and `.lewitt/`:
 
 - `<run>/decision-log.md` holds each decision, with its date and source. An entry is never edited. A changed decision is a new entry, and the earlier entry is marked as superseded.
-- `notes/pattern-rules.md` holds the rules that apply beyond one project. See "Rules" below.
+- `.lewitt/pattern-rules.md` holds the rules that apply beyond one project. See "Rules" below.
 
 ## Rules
 
@@ -176,9 +172,9 @@ For each change the design lead asks for, find the system behind it and propose 
 2. State an exception, if one exists.
 3. Recommend a level: project note, pattern rule, or org rule.
 4. Name the source: the design lead's words or Figma frame.
-5. Check the rule against the design system's guidance and the copy sources in `notes/copy-sources.md`, and name any conflict.
+5. Check the rule against the design system's guidance and the copy sources in `.lewitt/copy-sources.md`, and name any conflict.
 
-The design lead decides the level. Record a project note in the decision log. Add a pattern rule or an org rule to `notes/pattern-rules.md`. Add a copy rule to the copywriter's memory, through its next brief.
+The design lead decides the level. Record a project note in the decision log. Add a pattern rule or an org rule to `.lewitt/pattern-rules.md`. Add a copy rule to the copywriter's memory, through its next brief.
 
 ## Guides
 
@@ -186,43 +182,24 @@ Read each guide once in a session, when the work needs it:
 
 | Guide | When |
 |---|---|
-| `guides/usability.md` | Before planning options or building version 1 |
-| `guides/visual-design.md` | Before building or reviewing a version |
-| `notes/design-system.md` | Before building or reviewing a version, and before any Figma render |
-| `guides/ux-writing.md` | Before reviewing copy the copywriter returned |
-| `notes/pattern-rules.md` | Before building a version, and when proposing a rule |
-| `notes/app.md` | Before running the app, taking a screenshot or a page snapshot |
+| `$LEWITT_ROOT/guides/usability.md` | Before planning options or building version 1 |
+| `$LEWITT_ROOT/guides/visual-design.md` | Before building or reviewing a version |
+| `.lewitt/design-system.md` | Before building or reviewing a version, and before any Figma render |
+| `$LEWITT_ROOT/guides/ux-writing.md` | Before reviewing copy the copywriter returned |
+| `.lewitt/pattern-rules.md` | Before building a version, and when proposing a rule |
+| `.lewitt/app.md` | Before running the app, taking a screenshot or a page snapshot |
 
-`notes/` holds the guides for one product. The first run writes them from `templates/notes/`.
+`.lewitt/` holds the guides for one product. The setup writes them from `$LEWITT_ROOT/templates/`.
 
 ## The Now view
 
-The `now-view` plugin in `plugins/now-view/` shows the team's tasks in a pane, under the project summary that `set_project` sets: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. The pane lists only the chat's own project: the tasks and questions of the chat, and those of earlier chats that set the same project name with `set_project`. A new chat shows no project until it calls `set_project`. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a session starts, at the first prompt when the terminal was too narrow at the start, and when a sub-agent starts. Once the design lead closes it, it stays closed in that chat until `/now` opens it again. `/now clear` removes the project's finished tasks from the pane.
+The `now-view` plugin shows the team's tasks in a pane, under the project summary that `set_project` sets: a card for each task in progress with a line on what it is doing and the files it changed, the designer's own card while a request is in progress, and a row for each finished task with its time, including each request to the designer that produced work. The pane lists only the chat's own project: the tasks and questions of the chat, and those of earlier chats that set the same project name with `set_project`. A new chat shows no project until it calls `set_project`. Selecting a task opens its brief and its answer, and `t` opens its transcript. The design lead answers a flagged question in the chat, and "Done" in the pane clears it. The pane opens when a session starts, at the first prompt when the terminal was too narrow at the start, and when a sub-agent starts. Once the design lead closes it, it stays closed in that chat until `/now` opens it again. `/now clear` removes the project's finished tasks from the pane.
 
-`.claude/settings.json` in this repository registers the `lewitt` marketplace and enables the `now-view` plugin. Claude Code applies both only after the design lead trusts this folder, and a later session can start without them. Check at the start of each project:
-
-1. Run `claude plugin list`, and look for `now-view@lewitt` with the status enabled.
-2. If it is missing or disabled, ask the design lead whether to install it, and wait for the answer.
-3. If the design lead says yes, install it with Bash. Add the marketplace only when `claude plugin marketplace list` does not list `lewitt`:
-
-   ```sh
-   claude plugin marketplace add craigmdennis/lewitt
-   ```
-
-   Then install the plugin:
-
-   ```sh
-   claude plugin install now-view@lewitt
-   ```
-
-   Run `claude plugin list` again, and check that `now-view@lewitt` shows as enabled.
-4. Ask the design lead to type `/reload-plugins`, then `/now`, each as its own message. A slash command opens its own prompt, so two commands pasted together fail. The session loads the plugin only at `/reload-plugins`. The pane then lists the sub-agents already working, from their next tool call.
-5. Wait for the design lead to say the pane opened. Start no sub-agent before then. If it does not open, report it, and ask whether to start the project without it.
-6. If the design lead says no to the install, start the project without it, and ask again at the next project.
+The `lewitt` plugin depends on `now-view`, so installing Lewitt installs it. When `set_project` is not among this session's tools, run `claude plugin list` and report whether `now-view@lewitt` is enabled. Ask the design lead whether to start the project without it.
 
 ## Data and privacy
 
-Run folders, research output, agent memory and `notes/` hold the company's data. All four sit in the app repository's checkouts, outside this repository, and its `.git/info/exclude` keeps them out of its commits.
+Run folders, research output, agent memory and `.lewitt/` hold the company's data. All four sit in the product's checkouts, and its `.git/info/exclude` keeps them out of its commits.
 
 - Never publish a prototype, a report or an artifact to a public URL.
 - Every source is read only. The researcher reads its sources and writes to none of them.
@@ -230,6 +207,6 @@ Run folders, research output, agent memory and `notes/` hold the company's data.
 ## Conventions
 
 - No emoji.
-- Documents about Lewitt itself, such as specs and plans for a change to Lewitt, go in `docs/` in this checkout, which git ignores. Documents about a product go in `.lewitt/docs/` in the app repository's main checkout. Each project's files go in `<run>/`.
+- Documents about the product, such as specs and plans, go in `.lewitt/docs/`. Each project's files go in `<run>/`.
 - Use built-in events and notifications. Never poll or set a timer to wait for work.
 - Ask before creating a git worktree.

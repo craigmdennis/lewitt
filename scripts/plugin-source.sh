@@ -1,24 +1,31 @@
 #!/usr/bin/env bash
-# Switch the installed Now view between this checkout and the pushed version.
+# Switch an installed plugin of this marketplace between this checkout and the
+# pushed version.
 #
-#   scripts/now-view.sh local    # copy plugins/now-view/ from this checkout
-#   scripts/now-view.sh live     # fetch the pushed version from GitHub and copy it
-#   scripts/now-view.sh status   # say which copy each install holds
+#   scripts/plugin-source.sh <plugin> local    # copy plugins/<plugin>/ from this checkout
+#   scripts/plugin-source.sh <plugin> live     # fetch the pushed version from GitHub and copy it
+#   scripts/plugin-source.sh <plugin> status   # say which copy each install holds
 #
-# Claude Code loads the plugin from the folder that installed_plugins.json names
-# for each install, user or project scope. `local` copies this checkout's plugin
-# folder into each one, and sets LOCAL in the copy's hooks/build.ts to the commit
-# it copied. The pane's footer shows the version, and LOCAL with that commit.
-# `live` updates the lewitt marketplace clone, runs `claude plugin update`, and
-# copies the marketplace's plugin folder into each install, which puts back the
-# pushed hooks/build.ts. A copy takes effect in a session at its next
-# /reload-plugins.
+# <plugin> is lewitt or now-view. Claude Code loads a plugin from the folder that
+# installed_plugins.json names for each install, user or project scope. `local`
+# copies this checkout's plugin folder into each one, and records the commit it
+# copied in the copy's .local-commit file. For the Now view it also sets LOCAL in
+# the copy's hooks/build.ts, which the pane's footer shows. `live` updates the
+# lewitt marketplace clone, runs `claude plugin update`, and copies the
+# marketplace's plugin folder into each install, which removes .local-commit and
+# puts back the pushed hooks/build.ts. A copy takes effect in a session at its
+# next /reload-plugins, and a hook or an agent change at the next session.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/plugins/now-view"
+NAME="${1:-}"
+case "$NAME" in
+  lewitt|now-view) ;;
+  *) echo "Usage: scripts/plugin-source.sh lewitt|now-view local|live|status" >&2; exit 2 ;;
+esac
+SRC="$ROOT/plugins/$NAME"
 PLUGINS="$HOME/.claude/plugins"
-PLUGIN="now-view@lewitt"
+PLUGIN="$NAME@lewitt"
 
 # Each install's scope and folder, one per line, as "scope<TAB>path".
 installs() {
@@ -36,11 +43,6 @@ version_of() {
     "$1/.claude-plugin/plugin.json"
 }
 
-# The commit a local copy came from, or nothing for a pushed copy.
-local_of() {
-  sed -n "s/^export const LOCAL[^=]*= '\\([^']*\\)'.*/\\1/p" "$1/hooks/build.ts"
-}
-
 # Copies a plugin folder into an install, keeping the engine's own files.
 copy_into() {
   rsync -a --delete \
@@ -55,17 +57,20 @@ require_installs() {
   fi
 }
 
-case "${1:-status}" in
+case "${2:-status}" in
   local)
     require_installs
     commit="$(git -C "$ROOT" rev-parse --short HEAD)"
-    if [ -n "$(git -C "$ROOT" status --porcelain -- plugins/now-view)" ]; then
+    if [ -n "$(git -C "$ROOT" status --porcelain -- "plugins/$NAME")" ]; then
       commit="$commit+changes"
     fi
     installs | while IFS=$'\t' read -r scope path; do
       copy_into "$SRC" "$path"
-      sed -i '' "s/^export const LOCAL.*/export const LOCAL: string | undefined = '$commit'/" \
-        "$path/hooks/build.ts"
+      echo "$commit" > "$path/.local-commit"
+      if [ -f "$path/hooks/build.ts" ]; then
+        sed -i '' "s/^export const LOCAL.*/export const LOCAL: string | undefined = '$commit'/" \
+          "$path/hooks/build.ts"
+      fi
       echo "$scope: local $(version_of "$path") at $commit, in $path"
     done
     echo "Type /reload-plugins in each session that should use it."
@@ -77,7 +82,7 @@ case "${1:-status}" in
       claude plugin update "$PLUGIN" --scope "$scope" >/dev/null
     done
     market="$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["lewitt"]["installLocation"])' \
-      "$PLUGINS/known_marketplaces.json")/plugins/now-view"
+      "$PLUGINS/known_marketplaces.json")/plugins/$NAME"
     installs | while IFS=$'\t' read -r scope path; do
       copy_into "$market" "$path"
       echo "$scope: pushed $(version_of "$path"), in $path"
@@ -87,9 +92,8 @@ case "${1:-status}" in
   status)
     require_installs
     installs | while IFS=$'\t' read -r scope path; do
-      commit="$(local_of "$path")"
-      if [ -n "$commit" ]; then
-        echo "$scope: local $(version_of "$path") at $commit, in $path"
+      if [ -f "$path/.local-commit" ]; then
+        echo "$scope: local $(version_of "$path") at $(cat "$path/.local-commit"), in $path"
       else
         echo "$scope: pushed $(version_of "$path"), in $path"
       fi
@@ -97,7 +101,7 @@ case "${1:-status}" in
     echo "Checkout: $(version_of "$SRC") at $(git -C "$ROOT" rev-parse --short HEAD)"
     ;;
   *)
-    echo "Usage: scripts/now-view.sh local | live | status" >&2
+    echo "Usage: scripts/plugin-source.sh lewitt|now-view local|live|status" >&2
     exit 2
     ;;
 esac

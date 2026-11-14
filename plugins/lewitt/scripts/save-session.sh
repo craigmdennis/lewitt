@@ -11,14 +11,17 @@
 # 4. Run this script. It reads the value from the clipboard, because a terminal
 #    prompt accepts at most 1024 bytes, and then clears the clipboard.
 #
-# The script writes the cookies for <domain> to SESSION_FILE from lewitt.env.
+# The script writes the cookies for <domain> to SESSION_FILE from .lewitt/paths.
 # With a check URL, it then requests that URL with the cookies and reports the
 # status.
 #
-# Usage: scripts/save-session.sh <domain> [check url]
+# Usage, from the product folder that holds .lewitt/:
+#   sh "$LEWITT_ROOT/scripts/save-session.sh" <domain> [check url]
 set -eu
-cd "$(dirname "$0")/.."
-. ./lewitt.env
+[ -f .lewitt/paths ] || { echo "Run this from the product folder that holds .lewitt/." >&2; exit 1; }
+set -a
+. ./.lewitt/paths
+set +a
 umask 077
 mkdir -p "$(dirname "$SESSION_FILE")"
 python3 - "$SESSION_FILE" "$1" "${2:-}" <<'PY'

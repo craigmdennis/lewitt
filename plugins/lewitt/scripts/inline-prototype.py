@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a prototype version as one HTML file, so the design lead can share the file on its own.
 
-    python3 scripts/inline-prototype.py <run>/prototype/v<n>
+    python3 "$LEWITT_ROOT/scripts/inline-prototype.py" <run>/prototype/v<n>
 
 The prototyper edits the files in `prototype/v<n>/src/`. This script writes
 `prototype/v<n>/index.html` from `src/index.html`, with each local stylesheet in a `<style>`

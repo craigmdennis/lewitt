@@ -16,7 +16,7 @@ Before reading any data, write down:
 ## 2. Define each measure
 
 - **Name the unit,** such as an account, a workspace or a user. "Customer" and "active" have several meanings, so give the definition used.
-- **Check each event and table before using it.** In Amplitude, list the project's events and properties first and use only names that exist. In a data warehouse, check `information_schema` and apply the data caveats in `notes/research.md`.
+- **Check each event and table before using it.** In Amplitude, list the project's events and properties first and use only names that exist. In a data warehouse, check `information_schema` and apply the data caveats in `.lewitt/research.md`.
 - **State the denominator.** A count without its base cannot be compared. Give both, such as "212 of 4,180 accounts (5.1%)".
 - **Fix the time window and the time zone**, and say whether the window includes the current, incomplete period.
 - **Remove what is not a real customer:** internal accounts, test accounts, trials when the question is about paying customers, and churned accounts when the question is about current behaviour.

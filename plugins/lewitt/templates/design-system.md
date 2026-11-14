@@ -1,6 +1,6 @@
 ## Design system guidance
 
-Fill in this guide for your design system, and save it as `notes/design-system.md`. It applies the design system and the design lead's rules to the principles in `guides/visual-design.md`. Where it conflicts with a general principle, this guidance applies.
+Fill in this guide for your design system, and save it as `.lewitt/design-system.md`. It applies the design system and the design lead's rules to the principles in `guides/visual-design.md`. Where it conflicts with a general principle, this guidance applies.
 
 ### Foundations
 
@@ -26,7 +26,7 @@ Space elements with the layout components `<names>` and the spacing tokens. A va
 
 ### Rules from the design lead's feedback
 
-Each rule is a default, with the designer's discretion as the exception unless the rule states another exception. The designer adds each new pattern rule and org rule to `notes/pattern-rules.md` after the design lead decides its level.
+Each rule is a default, with the designer's discretion as the exception unless the rule states another exception. The designer adds each new pattern rule and org rule to `.lewitt/pattern-rules.md` after the design lead decides its level.
 
 ### Editing Figma renders
 
@@ -45,10 +45,10 @@ Before you call `use_figma`, read the `figma-use` skill.
 
 A contact sheet hides an offset of a few pixels. Run the visual check on each state a version builds, before you send a build and in every review.
 
-1. Run the layout check on the state, from the repository root, with `lewitt.env` loaded as `notes/app.md` describes:
+1. Run the layout check on the state, from the product folder, with `.lewitt/paths` loaded as `.lewitt/app.md` describes:
 
    ```sh
-   node scripts/screenshot.mjs "$SESSION_FILE" --layout 'file://<run>/prototype/v<n>/index.html?state=<ID>' <run>/screenshots/layout-<ID>.png --selector '<css>' --wait 1000
+   node "$LEWITT_ROOT/scripts/screenshot.mjs" "$SESSION_FILE" --layout 'file://<run>/prototype/v<n>/index.html?state=<ID>' <run>/screenshots/layout-<ID>.png --selector '<css>' --wait 1000
    ```
 
    The check lists each pair of neighbouring elements whose edges miss by 1 to 4 px, and each heading with less space above it than below it. The PNG shows each finding outlined and numbered. For a page on a dev server, use its URL and `--wait 15000`.

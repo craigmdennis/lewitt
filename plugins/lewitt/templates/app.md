@@ -1,6 +1,6 @@
 ## The app
 
-Fill in this guide for your product, and save it as `notes/app.md`. The designer and the engineer read it before they run the app, take a screenshot or take a page snapshot. A section marked "Front-end engineer only" applies to a web app. Without a front-end engineer in `notes/roles.md`, delete it.
+Fill in this guide for your product, and save it as `.lewitt/app.md`. The designer and the engineer read it before they run the app, take a screenshot or take a page snapshot. A section marked "Front-end engineer only" applies to a web app. Without a front-end engineer in `.lewitt/roles.md`, delete it.
 
 ### Repositories
 
@@ -45,18 +45,18 @@ Before starting a dev server, check the port with `lsof -iTCP:<port> -sTCP:LISTE
 
 Front-end engineer only. Another engineer's definition gives its screenshot command.
 
-Load `lewitt.env` first, for `SESSION_FILE` and `PLAYWRIGHT_DIR`: `set -a; . ./lewitt.env; set +a`.
+Load `.lewitt/paths` first, from the product folder, for `LEWITT_ROOT`, `SESSION_FILE` and `PLAYWRIGHT_DIR`: `set -a; . .lewitt/paths; set +a`.
 
 Every state in a list, with a contact sheet in `<dir>/sheet.png`:
 
 ```sh
-node scripts/screenshot.mjs "$SESSION_FILE" --states <url> S1,S2,S3 <dir> --selector '<css>'
+node "$LEWITT_ROOT/scripts/screenshot.mjs" "$SESSION_FILE" --states <url> S1,S2,S3 <dir> --selector '<css>'
 ```
 
 One page:
 
 ```sh
-node scripts/screenshot.mjs "$SESSION_FILE" <url> <file>.png --selector '<css>'
+node "$LEWITT_ROOT/scripts/screenshot.mjs" "$SESSION_FILE" <url> <file>.png --selector '<css>'
 ```
 
 - `--selector` crops each screenshot to the component. The page map in the codebase report gives the selector of each part of the page. Never crop by pixel offsets.
@@ -70,7 +70,7 @@ Front-end engineer only.
 A page snapshot is a static copy of a page, with no scripts, for a standalone prototype. The element that `--selector` matches becomes a line that reads `<!-- PROTOTYPE -->`:
 
 ```sh
-node scripts/screenshot.mjs "$SESSION_FILE" --snapshot <url> <run>/snapshots/<page> --selector '<css>'
+node "$LEWITT_ROOT/scripts/screenshot.mjs" "$SESSION_FILE" --snapshot <url> <run>/snapshots/<page> --selector '<css>'
 ```
 
 The command writes `page.html`, `part.html` (the matched element), `page.css` (every CSS rule, with the fonts and images inlined) and `page.png`. A snapshot shows the account's real data, so it stays in the run folder.

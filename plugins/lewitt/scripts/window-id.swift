@@ -1,13 +1,13 @@
 // Prints the window number of the frontmost on-screen window of a running app,
 // for `screencapture -l`. Exits 1 when the app has no on-screen window.
 //
-// Usage: swift scripts/window-id.swift <app name>
-//        screencapture -o -l "$(swift scripts/window-id.swift <app name>)" <file>.png
+// Usage: swift "$LEWITT_ROOT/scripts/window-id.swift" <app name>
+//        screencapture -o -l "$(swift "$LEWITT_ROOT/scripts/window-id.swift" <app name>)" <file>.png
 import CoreGraphics
 import Foundation
 
 guard CommandLine.arguments.count == 2 else {
-    FileHandle.standardError.write("Usage: swift scripts/window-id.swift <app name>\n".data(using: .utf8)!)
+    FileHandle.standardError.write("Usage: swift window-id.swift <app name>\n".data(using: .utf8)!)
     exit(2)
 }
 let app = CommandLine.arguments[1]

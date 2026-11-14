@@ -1,0 +1,22 @@
+# Pointers for this product on this Mac. Lewitt's setup copies this file to
+# .lewitt/paths. Load it with: set -a; . .lewitt/paths; set +a
+# Write paths with $HOME.
+#
+# The plugin's install folder, for its scripts, guides and templates. The
+# session-start hook writes it at each session start.
+LEWITT_ROOT=""
+# The main checkout of the product's repository: the folder that holds .lewitt/.
+# The session-start hook writes it.
+APP_REPO=""
+# The folder that holds each project's worktree. The default is .lewitt/worktrees
+# in the main checkout, which git ignores. To use a folder the repository already
+# keeps its worktrees in, set it here: git worktree list.
+WORKTREES_DIR="$APP_REPO/.lewitt/worktrees"
+# The backend repository the engineer reads, if any. Leave empty for none.
+BACKEND_REPO=""
+# Front-end engineer only. The folder in APP_REPO that holds @playwright/test, for
+# the screenshot script. Leave empty without a front-end engineer.
+PLAYWRIGHT_DIR=""
+# Front-end engineer only. The saved session for screenshots of the app. The
+# save-session script writes it. Keep it outside every repository.
+SESSION_FILE=""
