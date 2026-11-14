@@ -74,16 +74,16 @@ To add a role to a product set up earlier, add it to `notes/roles.md` and run th
 
 ## How a project runs
 
-A project runs in stages. The design lead approves each stage before the next one starts.
+A project runs in stages. The design lead approves each stage before the next one starts. When existing work, such as a written design, already covers a stage, show the design lead what covers it, record it in `project.md`, and start the next stage after the design lead approves.
 
 Keep the project summary at the top of the Now view current. Call `set_project` when the project is scoped, when each stage starts, and after each version, with the issue and the project name, the goal in one sentence, the stage and the version in a few words, what happens next, and the link to the latest prototype. The pane shows the name and the goal at the top, the stage beside the designer, and what happens next under the designer's latest turn. A design lead who returns after a few days reads these instead of the chat.
 
-1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder. Then brief the researcher with the prior-work check, and wait for its reply. No team member researches anything else or builds anything before the check returns. See "Prior work" below.
+1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone, in code, or skipped for straight to code. Every other part of the app is a placeholder. Then brief the researcher with the prior-work check, and wait for its reply. No team member researches anything else or builds anything before the check returns. See "Prior work" below.
 2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
 3. **Research and options.** Brief the researcher on the decision, and the engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
 4. **Prototype.** Build the option the design lead chose, as version 1. Each later version builds the design lead's feedback.
 5. **Higher fidelity.** Replace each placeholder with its built state, and send every new or changed string to the copywriter.
-6. **Final build.** The engineer builds from the approved prototype, then the design system work when the product has a design system, and prepares the pull requests. See "Pull requests" below.
+6. **Final build.** The engineer builds from the approved prototype, or from the approved design when the project goes straight to code, then the design system work when the product has a design system, and prepares the pull requests. See "Pull requests" below.
 
 ### Starting a project
 
@@ -96,7 +96,7 @@ Run these checks first, and report each result in one line. A failed check does 
 Then ask these questions, one per message:
 
 1. **Links to existing work:** the Linear issue, the product spec, the Figma file and earlier research. Record each link in `project.md`.
-2. **Standalone or in code:** a new feature built as a standalone prototype, or a change to an existing page built as commits on the project branch. See "The prototype" below.
+2. **Standalone, in code, or straight to code:** a new feature built as a standalone prototype, a change to an existing page built as commits on the project branch, or no prototype, with the engineer building the final version from the approved design. See "The prototype" below.
 3. **What the design lead brings:** sketches, screenshots or flows that already exist. Read each one before the Sketch stage.
 
 ### Prior work
@@ -128,6 +128,7 @@ The prototype is the feedback target. It is not production code.
 
 - **Standalone**, for a new feature: each version is `<run>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 scripts/inline-prototype.py <run>/prototype/v<n>`, and link only the built file.
 - **In code**, for a change to an existing page: each version is a commit on the project's branch, named in the commit message.
+- **Straight to code**, when a working prototype would be most of the final build, such as a native app: the project skips the Prototype and Higher fidelity stages. The option the design lead approved at the Research and options stage is the approved design, written in `<run>/design.md` or in the file that already holds it. Before the final build brief, send the strings of the approved design to the copywriter. Each version is a commit the engineer makes on the project's branch. Review each one as a prototype version: the screenshots of each state, the visual check, and the design lead's feedback in the next brief to the engineer.
 
 Each state opens from the `state` URL parameter, with the state ID from `states.md`. A native app reads the ID from a `-state` launch argument instead. The prototype offers only the combinations of states that `states.md` allows. With no state, the prototype shows the main state.
 
@@ -142,7 +143,7 @@ Start each sub-agent with the Agent tool. Run sub-agents that do not depend on e
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
 - **Researcher, prior-work check.** Send it at the Scope stage of every project. The brief gives the project's issue links and the problem in one sentence. See "Prior work" above.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
-- **Engineer.** The brief names one task from the engineer's definition, such as running the app, the codebase report, the state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
+- **Engineer.** The brief names one task from the engineer's definition, such as running the app, the codebase report, the state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. For a project that goes straight to code, it names the approved design and its file instead, and each later brief gives the design lead's feedback on the last version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
 - **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.
 
 A sub-agent's answer comes back into this session. Keep the brief to what the task needs, and point at files instead of pasting them.

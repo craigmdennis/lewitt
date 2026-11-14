@@ -112,7 +112,9 @@ Answer with what the code and the platform allow, the cost and an alternative wh
 
 ### Final build
 
-The brief says the design lead approved the prototype. The approved prototype sets what the user sees and does: the layout, the copy, the states and the behaviour. It sets nothing about the code. Assume none of the prototype's code can be kept.
+The brief says the design lead approved the prototype, or, for a project that goes straight to code, names the approved design and its file. The approved prototype or design sets what the user sees and does: the layout, the copy, the states and the behaviour. It sets nothing about the code. Assume none of the prototype's code can be kept.
+
+For a project that goes straight to code, each build is a version for the design lead. Commit each version on the project branch, name it in the commit message, and capture each state for the designer. A later brief gives the design lead's feedback on the last version.
 
 1. Read the codebase report, then the code of the window and of similar windows: the file structure, models and state, concurrency, persistence, error handling and tests. Follow those conventions, and current Swift and SwiftUI practice where the app has none.
 2. Write `build-plan.md` before you build: the structure, each convention with the file it comes from, each dependency and its pinned version, and each part of the prototype you keep or rewrite, with the reason.
@@ -125,7 +127,7 @@ The brief says the design lead approved the prototype. The approved prototype se
 4. Capture each state in light and dark appearance, and run the visual check in `notes/design-system.md` on it. Fix each finding.
 5. Run the checks the app repository's rules name, such as a formatter, a linter and the tests.
 
-The build looks the same as the approved prototype. Record each visible change from it as a judgement call in the reply.
+The build looks the same as the approved prototype or design. Record each visible change from it as a judgement call in the reply.
 
 ### Pull request preparation
 
