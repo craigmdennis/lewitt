@@ -24,10 +24,6 @@ Space elements with the layout components `<names>` and the spacing tokens. A va
 |---|---|---|
 | `<name>` | `<use>` | `<sizes>` |
 
-### Rules from the design lead's feedback
-
-Each rule is a default, with the designer's discretion as the exception unless the rule states another exception. The designer adds each new pattern rule and org rule to `.lewitt/pattern-rules.md` after the design lead decides its level.
-
 ### Editing Figma renders
 
 Before you call `use_figma`, read the `figma-use` skill.

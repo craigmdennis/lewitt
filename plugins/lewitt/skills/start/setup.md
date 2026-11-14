@@ -64,7 +64,7 @@ Otherwise, read the design system's foundations from the folders in step 3, then
 2. **The tokens:** the spacing scale and the radius scale, with their prefixes.
 3. **The layout components** used for spacing.
 4. **The text styles:** each component, its use and its sizes.
-5. **Rules the design lead already follows** that the documentation does not state. Ask for them in the design lead's words, one at a time, until the design lead has no more. Write each one as a default with an exception.
+5. **Rules the design lead already follows** that the documentation does not state. Copy `templates/pattern-rules.md` to `.lewitt/pattern-rules.md`. Ask for the rules in the design lead's words, one at a time, until the design lead has no more. Add each one as a pattern rule, with its default, its exception, the design lead's words as the source, and `setup` as its entry. Leave the example row out when there are none.
 
 ## 5. Copy
 
@@ -89,16 +89,12 @@ Researcher only. Write `.lewitt/research.md` from `templates/research.md`, then 
 
 Copy `templates/skills.md` to `.lewitt/skills.md`. Keep the heading of each role in `.lewitt/roles.md`, and delete the others. For each company skill from steps 5 and 6, and each Lewitt skill an engineer needs for the product's stack, ask which agents load it, and list it under each one. When there are none, keep the file with its headings.
 
-## 8. Pattern rules
-
-Copy `templates/pattern-rules.md` to `.lewitt/pattern-rules.md`. Ask whether the design lead has approved rules from earlier projects. Add each one to the table, one question at a time. Leave the example row out when there are none.
-
-## 9. Connections
+## 8. Connections
 
 1. Run `claude mcp list`. Report each server in the definitions of the roles in `.lewitt/roles.md`, such as `amplitude`, `mobbin`, `linear` and `snowflake`, as connected or missing, with Notion through claude.ai. For each missing server, ask whether to connect it, and give its setup step. Each server is optional.
 2. Check that `claude plugin list` shows `now-view@lewitt` as enabled. The `lewitt` plugin depends on it, so a missing Now view means the install did not finish: give `claude plugin install now-view@lewitt`.
 
-## 10. Finish
+## 9. Finish
 
 1. Run the checks:
    - `git status --short` in the product folder lists neither `.lewitt/` nor any change the setup made.
