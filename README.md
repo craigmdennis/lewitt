@@ -9,7 +9,7 @@ The name comes from Sol LeWitt, whose wall drawings were written instructions th
 Lewitt replaces an earlier setup that ran design projects through an orchestration agent on a task board. These goals come from what that setup did well and what it did badly:
 
 1. **The design lead stays in the design conversation.** Feedback relayed through an orchestration agent loses detail in both directions. In Lewitt the design lead talks to the designer directly, as in a Claude Code session, and gives direction while the work happens.
-2. **Bounded tasks go to specialists.** Research, copy and front-end work come back usable after a light review. Each one is a sub-agent here, with its own skills and memory, so the designer's context stays small.
+2. **Bounded tasks go to specialists.** Research, copy and engineering work come back usable after a light review. Each one is a sub-agent here, with its own skills and memory, so the designer's context stays small.
 3. **The prototype is the feedback target.** A prototype with every state reachable by URL is the most useful output. Each version is one prototype link, and renders and diagrams are made only on request.
 4. **Lower cost.** Lewitt has no orchestration agent, runs Opus for the designer only, and runs every sub-agent on Sonnet.
 5. **Visibility without a task board.** The design lead can see each sub-agent's task, its brief and its answer in the Now view.
@@ -29,10 +29,12 @@ Lewitt replaces an earlier setup that ran design projects through an orchestrati
 
 A full-stack engineer for backend changes is planned.
 
+Each product uses the roles listed in `notes/roles.md`, which the first run writes. The design lead, the designer and the design partner are in every product. `CLAUDE.md` gives the steps to add a role.
+
 Two hooks hold each sub-agent to its column:
 
 - `memory-only-writes.py` blocks a write or an edit outside the sub-agent's memory and the folders its definition names.
-- `no-remote-writes.py` blocks the front-end engineer's pushes and GitHub writes. The engineer returns those commands, and the designer runs them after the design lead approves.
+- `no-remote-writes.py` blocks each engineer's pushes and GitHub writes. The engineer returns those commands, and the designer runs them after the design lead approves.
 
 ## The Now view
 

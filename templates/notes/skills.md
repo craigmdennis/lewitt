@@ -1,6 +1,6 @@
 ## Company skills
 
-Each agent loads the skills listed under its role, once per session. List a skill by the name the Skill tool takes.
+Each agent loads the skills listed under its role, once per session. List a skill by the name the Skill tool takes. Keep a heading for each role in `notes/roles.md`, and delete the others.
 
 ### Copywriter
 

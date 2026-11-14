@@ -1,6 +1,6 @@
 ## The app
 
-Fill in this guide for your product, and save it as `notes/app.md`. The designer and the front-end engineer read it before they run the app, take a screenshot or take a page snapshot.
+Fill in this guide for your product, and save it as `notes/app.md`. The designer and the engineer read it before they run the app, take a screenshot or take a page snapshot. A section marked "Front-end engineer only" applies to a web app. Without a front-end engineer in `notes/roles.md`, delete it.
 
 ### Repositories
 
@@ -21,13 +21,15 @@ Name the API the dev server runs against, and the account it logs in as. When it
 - Build every change that needs the backend on a stub.
 - Never print, copy or edit the session file.
 
-When a screenshot shows the login page, the app no longer logs in. The designer briefs the front-end engineer with the "Running the app" task.
+When a screenshot shows the login page, the app no longer logs in. The designer briefs the engineer with the "Running the app" task.
 
 ### Running the app
 
-The designer writes this section from the front-end engineer's reply to the "Running the app" task: the way the app runs on this Mac, the commands in order, the ports, the account it logs in as and the check URL.
+The designer writes this section from the engineer's reply to the "Running the app" task: the way the app runs on this Mac, the commands in order, the ports, the account it logs in as and the check URL.
 
 ### Dev servers
+
+Front-end engineer only.
 
 | Who | Port |
 |---|---|
@@ -40,6 +42,8 @@ The command that starts a dev server: `<command>`.
 Before starting a dev server, check the port with `lsof -iTCP:<port> -sTCP:LISTEN`. When a dev server already runs there, use it. "Local preview" in the codebase report gives the commands for a project's worktree.
 
 ### Screenshots
+
+Front-end engineer only. Another engineer's definition gives its screenshot command.
 
 Load `lewitt.env` first, for `SESSION_FILE` and `PLAYWRIGHT_DIR`: `set -a; . ./lewitt.env; set +a`.
 
@@ -60,6 +64,8 @@ node scripts/screenshot.mjs "$SESSION_FILE" <url> <file>.png --selector '<css>'
 - The script waits 15 seconds after each page loads. `--wait <ms>` changes the wait. A standalone prototype needs `--wait 1000`.
 
 ### Page snapshots
+
+Front-end engineer only.
 
 A page snapshot is a static copy of a page, with no scripts, for a standalone prototype. The element that `--selector` matches becomes a line that reads `<!-- PROTOTYPE -->`:
 

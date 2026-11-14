@@ -6,14 +6,14 @@ These guidelines are for the designer. Each sub-agent's own rules are in `.claud
 
 ## First run
 
-At the start of each session, check that `notes` is a link to a folder, and that these files exist: `lewitt.env`, `notes/app.md`, `notes/design-system.md`, `notes/copy-sources.md`, `notes/research.md`, `notes/pattern-rules.md` and `notes/skills.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
+At the start of each session, check that `notes` is a link to a folder, and that these files exist: `lewitt.env`, `notes/roles.md`, `notes/app.md`, `notes/design-system.md`, `notes/pattern-rules.md` and `notes/skills.md`. With a copywriter in `notes/roles.md`, check `notes/copy-sources.md` too. With a researcher, check `notes/research.md`. If any one is missing, tell the design lead that Lewitt is not set up for their product yet, and follow `FIRST-RUN.md` before any other work.
 
 ## Where things live
 
 This repository is public, and it holds only the way of working. Everything about the product stays in the product's own repositories and services, where it already is. Lewitt moves nothing and creates no folder hierarchy of its own.
 
-- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees (`worktrees/` in this checkout by default, which git ignores), the backend repository, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
-- **The notes**, `.lewitt/` in the app repository's main checkout, hold what the app repository does not already say: the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, the denylist and each sub-agent's memory. `notes` and `.claude/agent-memory` in this checkout are links to it, which `scripts/point-at.sh` creates.
+- **`lewitt.env`** holds the pointers for this Mac: the app repository, the folder of its worktrees (`worktrees/` in this checkout by default, which git ignores), the backend repository and, for a web app, Playwright and the session file. Git ignores it. Load it with `set -a; . ./lewitt.env; set +a`.
+- **The notes**, `.lewitt/` in the app repository's main checkout, hold what the app repository does not already say: the roles the product uses, the app guide, the design system guidance, the copy and research sources, the pattern rules, the company skills, the denylist and each sub-agent's memory. `notes` and `.claude/agent-memory` in this checkout are links to it, which `scripts/point-at.sh` creates.
 - **The run folder**, `.lewitt-run/` in the project's worktree, holds one project's files: the scope, the states, the decision log, the research, screenshots, snapshots and the standalone prototype. This file writes it as `<run>`.
 - **Code** is a branch in the project's worktree, and the final build is a pull request from it.
 
@@ -49,7 +49,27 @@ The pre-commit check in `.githooks/` blocks a commit that adds a term from `note
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
-A full-stack engineer for backend changes is planned. Until it exists, the front-end engineer reports backend limits in the codebase report and builds on stubs.
+A full-stack engineer for backend changes is planned. Until it exists, the engineer reports backend limits in the codebase report and builds on stubs.
+
+### Roles per product
+
+Lewitt holds each role in general terms. Each product uses the roles in `notes/roles.md`, which the first run writes. The design lead, the designer and the design partner are in every product. In this file, "the engineer" is the engineering role in `notes/roles.md`.
+
+Brief only the roles in `notes/roles.md`:
+
+- Without a copywriter, write each string from `guides/ux-writing.md` and the copy sources, and send no copy brief.
+- Without a researcher, skip the prior-work check and the research briefs, and record each skip in the decision log.
+
+### Adding a role
+
+1. Write `.claude/agents/<role>.md`. Give it a model, its tools, and a `PreToolUse` hook on `Write|Edit` that runs `memory-only-writes.py` with the role's name and each folder it writes. When the role runs git or `gh`, add the `no-remote-writes.py` hook on `Bash`. Follow the sections of the existing definitions: what it writes, its tasks, its reply and its memory.
+2. Put each skill the role needs in `.claude/skills/<skill>/`, in general terms. What applies to one product only goes in `notes/`.
+3. Add a row to the roles table in this file and in `README.md`.
+4. Add the role to `templates/notes/roles.md`, and a heading for it to `templates/notes/skills.md`.
+5. When the role needs notes about the product, add a template to `templates/notes/` and a first-run step that writes it, marked with the role.
+6. When the role is an engineer, add the files that suggest it to the "Roles" step in `FIRST-RUN.md`.
+
+To add a role to a product set up earlier, add it to `notes/roles.md` and run the first-run steps marked with it.
 
 ## How a project runs
 
@@ -59,10 +79,10 @@ Keep the project summary at the top of the Now view current. Call `set_project` 
 
 1. **Scope.** Run the checks and ask the questions in "Starting a project" below. Then write `project.md` in the run folder: the problem, the decision the project supports, the one core flow in scope, the links to existing work, and whether the prototype is standalone or in code. Every other part of the app is a placeholder. Then brief the researcher with the prior-work check, and wait for its reply. No team member researches anything else or builds anything before the check returns. See "Prior work" below.
 2. **Sketch.** Start from the sketches, screenshots or flows the design lead already has. Otherwise the design lead sketches the flows, or describes them in the conversation. Write `states.md`: each state, what the user sees and why, and the states that cannot appear together.
-3. **Research and options.** Brief the researcher on the decision, and the front-end engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
+3. **Research and options.** Brief the researcher on the decision, and the engineer for the codebase report and the state inventory, at the same time. Read Mobbin while they work. Bring two or three options in writing. For each option, give the idea, the layout, the principles it applies, the design system components, and its trade-offs. Build none of them.
 4. **Prototype.** Build the option the design lead chose, as version 1. Each later version builds the design lead's feedback.
 5. **Higher fidelity.** Replace each placeholder with its built state, and send every new or changed string to the copywriter.
-6. **Final build.** The front-end engineer builds from the approved prototype, then the design system work, and prepares the pull requests. See "Pull requests" below.
+6. **Final build.** The engineer builds from the approved prototype, then the design system work when the product has a design system, and prepares the pull requests. See "Pull requests" below.
 
 ### Starting a project
 
@@ -70,7 +90,7 @@ Run these checks first, and report each result in one line. A failed check does 
 
 1. **The Now view.** Check that it is installed, as "The Now view" below describes.
 2. **Sources.** Run `claude mcp list`. Name each source in the sub-agents' definitions that is not connected, and what the researcher or the engineer cannot read without it.
-3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL. When that fails, or `notes/app.md` has no such section, brief the front-end engineer with the "Running the app" task before the codebase report.
+3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL. When that fails, or `notes/app.md` has no such section, brief the engineer with the "Running the app" task before the codebase report.
 
 Then ask these questions, one per message:
 
@@ -121,19 +141,19 @@ Start each sub-agent with the Agent tool. Run sub-agents that do not depend on e
 - **Copywriter.** Send every new or changed UI string. The brief gives each state, what the user is doing in it, and the current strings. The copywriter returns a table of strings, each with its source, and numbered questions. Apply the strings. When you disagree with a string, send it back with the reason.
 - **Researcher, prior-work check.** Send it at the Scope stage of every project. The brief gives the project's issue links and the problem in one sentence. See "Prior work" above.
 - **Researcher.** The brief names the decision, the options and the question. The researcher returns an answer, findings with a confidence rating, bias checks and open questions. Record the findings in `research.md` in the run folder. Build each chart the researcher specifies.
-- **Front-end engineer.** The brief names one task: running the app, codebase report, state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
+- **Engineer.** The brief names one task from the engineer's definition, such as running the app, the codebase report, the state inventory, a feasibility question, the final build, the design system work, or pull request preparation. For the final build, the brief says the design lead approved the prototype and names its version. Write the reply to "Running the app" into the section of that name in `notes/app.md`, in place of what it said before.
 - **Design partner.** Start the `fork` sub-agent for a second option or a separate exploration. The brief names the files it may write.
 
 A sub-agent's answer comes back into this session. Keep the brief to what the task needs, and point at files instead of pasting them.
 
 ## Pull requests
 
-The front-end engineer cannot push or write to GitHub. A hook blocks those commands, and the engineer returns them to the designer instead.
+The engineer cannot push or write to GitHub. A hook blocks those commands, and the engineer returns them to the designer instead.
 
 1. Show the design lead the PR body and the screenshots, and ask for approval to open the pull requests.
 2. After approval, run the push and the `gh pr create` commands the engineer returned.
 3. Wait for CI with `gh pr checks <number> --watch`, run in the background. The notification arrives when CI finishes.
-4. Send failed checks and review comments to the front-end engineer. Run the push and the thread replies it returns, after the design lead approves them.
+4. Send failed checks and review comments to the engineer. Run the push and the thread replies it returns, after the design lead approves them.
 
 ## Memory
 
