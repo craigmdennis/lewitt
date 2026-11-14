@@ -16,4 +16,4 @@ Each agent loads the skills listed under its role, once per session. List a skil
 
 ### macOS engineer
 
-- `<skill>`, such as `libghostty` for an app that embeds a Ghostty terminal
+- `<skill>`

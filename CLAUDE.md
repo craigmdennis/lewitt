@@ -11,7 +11,7 @@ This repository is the source of Lewitt, a product design team in Claude Code, a
 | `plugins/lewitt/skills/designer/SKILL.md` | The designer's way of working: stages, briefs, the prototype, rules and memory |
 | `plugins/lewitt/skills/start/` | `/lewitt:start`, with `setup.md`, the questions that set Lewitt up in a product |
 | `plugins/lewitt/skills/{resume,new-role,contribute}/` | The other commands |
-| `plugins/lewitt/skills/{copy-rules,research-methods,libghostty}/` | Skills the roles load |
+| `plugins/lewitt/skills/{copy-rules,research-methods}/` | Skills the roles load |
 | `plugins/lewitt/agents/` | The built-in roles |
 | `plugins/lewitt/hooks/` | `session-start.py`, `scope.py` and their test |
 | `plugins/lewitt/guides/`, `templates/`, `scripts/` | General guides, the templates of a product's `.lewitt/` notes, and the scripts the roles run |
