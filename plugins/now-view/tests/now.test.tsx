@@ -499,3 +499,73 @@ test('the pane opens when the session starts and at the first prompt, and not ag
   expect(opened.length).toBe(2)
 
 })
+
+test('/now clear removes the finished tasks of the project, and they stay removed', async ($, on) => {
+  const kept: Record<string, unknown> = {
+    'runs:/project': [
+      {
+        id: 'x9',
+        type: 'copywriter',
+        description: 'Copy for the other project',
+        brief: 'Write it.',
+        status: 'done',
+        toolCount: 2,
+        startedAt: Date.UTC(2026, 10, 3, 11, 0),
+        endedAt: Date.UTC(2026, 10, 3, 11, 1),
+        sessionId: 'chat-9',
+        project: 'XYZ-9 · Other project',
+      },
+    ],
+  }
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.id', () => ({ value: 'chat-2' }))
+  on('session.root', () => ({ value: '/project' }))
+  on('store.get', (_, e) => ({ value: kept[e.key] }))
+  on('store.set', (_, e) => {
+    kept[e.key] = e.value
+
+    return { value: undefined }
+  })
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', (_, e) =>
+    e.agentId === undefined
+      ? {
+          value: [
+            {
+              role: 'assistant',
+              text: '',
+              toolUses: [
+                {
+                  tool_use_id: 'u1',
+                  tool: 'Agent',
+                  agentId: 'r1',
+                  durationMs: 240000,
+                  input: { description: 'Credit research', prompt: 'Find the evidence.', subagent_type: 'researcher' },
+                },
+              ],
+            },
+          ],
+        }
+      : { value: [{ role: 'assistant', text: 'Most accounts use no credits.', toolUses: [] }] },
+  )
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  let ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^FINISHED \(/ }))?.text).toBe('FINISHED (1)')
+  await ui.unmount()
+
+  const answer = await $.command.run({ command: 'now', args: 'clear' })
+  expect(answer.text).toBe('Cleared 1 finished task from the Now pane.')
+  // The other project's task stays in the store.
+  expect((kept['runs:/project'] as { id: string }[]).map(one => one.id)).toEqual(['x9'])
+
+  // /now reads the transcript again, and the cleared task stays removed.
+  await $.command.run({ command: 'now' })
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /^FINISHED \(/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Credit research/ })).toBeUndefined()
+  await ui.unmount()
+})

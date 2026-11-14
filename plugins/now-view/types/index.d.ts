@@ -74,6 +74,8 @@ declare module 'claude-code' {
       // True once the design lead closed the pane in this chat, so it does not
       // open again on its own.
       dismissed: boolean
+      // The ids of the finished runs /now clear removed in this chat.
+      cleared: string[]
     }
   }
 }

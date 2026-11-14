@@ -47,7 +47,7 @@ Two hooks hold each sub-agent to its column:
 - The footer, at the bottom of the pane, shows the version. A copy made from a checkout also shows LOCAL with the commit it came from.
 - Selecting a task opens it: its status, the files it changed, its brief from the designer and its answer. `t` opens the run's transcript, and `b` returns to the list.
 
-The pane opens when a sub-agent starts, and `/now` opens it at any time. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
+The pane opens when a sub-agent starts, and `/now` opens it at any time. `/now clear` removes the project's finished tasks from the pane and from its stored history, and keeps the running tasks and the open questions. The pane lists the project's tasks: those of the current chat, and those of earlier chats in the same project folder, which it keeps in Claude Code's plugin store. It names each task by its team role, such as COPYWRITER, RESEARCHER or DESIGN PARTNER. The terminal's font is the pane's font.
 
 To install it, run each command on its own, in this order.
 

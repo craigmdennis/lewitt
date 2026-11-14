@@ -26,6 +26,9 @@ const flags = atom({ plugin: 'now-view', key: 'flags' } as const, [], { shape: '
 const selected = atom({ plugin: 'now-view', key: 'selected' } as const, null)
 const project = atom({ plugin: 'now-view', key: 'project' } as const, null, { shape: 'project-1' })
 const dismissed = atom({ plugin: 'now-view', key: 'dismissed' } as const, false)
+// The finished runs `/now clear` removed in this chat, so that reading the
+// transcript again does not list them again.
+const cleared = atom({ plugin: 'now-view', key: 'cleared' } as const, [])
 // The projects kept for a folder: the latest for each chat, at most this many.
 const PROJECTS = 20
 
@@ -282,7 +285,7 @@ async function adopt(
 // agent in the session's agent list without one. The agent list drops an agent
 // some time after it finishes, and the transcript keeps the call.
 async function catchUp($: EngineInterface): Promise<void> {
-  const known = new Set((await read($, runs)).map(one => one.id))
+  const known = new Set([...(await read($, runs)).map(one => one.id), ...(await read($, cleared))])
   const agents = await $.agent.list().catch(() => [] as AgentInfo[])
   const live = new Map(agents.map(agent => [agent.id, agent]))
   const main = await $.session.messages().catch(() => [])
@@ -321,6 +324,7 @@ async function seen($: EngineInterface, id: string): Promise<void> {
   if (looked.has(id)) return
   looked.add(id)
   if ((await read($, runs)).some(one => one.id === id)) return
+  if ((await read($, cleared)).includes(id)) return
   const agent = (await $.agent.list()).find(one => one.id === id)
   if (agent) await adopt($, { ...agent, status: statusOf(agent) }, {})
 }
@@ -373,7 +377,8 @@ async function save($: EngineInterface): Promise<void> {
   if (!storeKey) return
   const stored = await $.store.get(storeKey).catch(() => undefined)
   const byId = new Map<string, Run>()
-  for (const run of Array.isArray(stored) ? (stored as Run[]) : []) byId.set(run.id, run)
+  const gone = new Set(await read($, cleared))
+  for (const run of Array.isArray(stored) ? (stored as Run[]) : []) if (!gone.has(run.id)) byId.set(run.id, run)
   for (const run of await read($, runs)) {
     if (run.type === DESIGNER && (run.status === 'running' || !produced(run))) continue
     byId.set(run.id, {
@@ -463,7 +468,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'now',
-      description: "Show the team's tasks in this project in a pane",
+      description: "Show the team's tasks in this project in a pane. /now clear removes the finished tasks.",
     })
     // A reload runs session.start again, with the session's agents still working.
     await $.tool.register({
@@ -545,7 +550,20 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'now' }, async $ => {
+  on('command.run', { command: 'now' }, async ($, e) => {
+    if ((e.args ?? '').trim().toLowerCase() === 'clear') {
+      // ponytail: another chat in the project that is open at the same time
+      // keeps these runs in its own state, and its next save writes them back.
+      const name = (await read($, project))?.name
+      const done = (await read($, runs)).filter(one => one.status !== 'running' && belongs(one, name))
+      const ids = new Set(done.map(one => one.id))
+      await update($, cleared, list => [...new Set([...list, ...ids])])
+      await update($, runs, list => list.filter(one => !ids.has(one.id)))
+      await update($, selected, current => (current !== null && ids.has(current) ? null : current))
+      await save($)
+
+      return { text: `Cleared ${ids.size} finished ${ids.size === 1 ? 'task' : 'tasks'} from the Now pane.` }
+    }
     await catchUp($).catch(() => undefined)
     await save($)
     await update($, dismissed, () => false)
