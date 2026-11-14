@@ -46,7 +46,10 @@ def main():
         assert code == 0 and out == "", out
 
         (root / ".lewitt" / "worktrees").mkdir(parents=True)
-        (root / ".lewitt" / "paths").write_text('WORKTREES_DIR="' + str(root / ".lewitt" / "worktrees") + '"\n')
+        # The paths file is read, never run: the command substitution stays text.
+        (root / ".lewitt" / "paths").write_text(
+            'APP_REPO="' + str(root) + '"\nWORKTREES_DIR="$APP_REPO/.lewitt/worktrees"\nX="$(touch ran)"\n'
+        )
         (root / ".lewitt" / "roles.md").write_text(
             "| Role | Agent type | Writes |\n|---|---|---|\n"
             "| Copywriter | `lewitt:copywriter` | memory |\n"
@@ -72,9 +75,13 @@ def main():
         # Lewitt roles never push, and other agents are left alone.
         assert bash(root, "lewitt:frontend-engineer", "git push origin HEAD") == 2
         assert bash(root, "swift-tester", "gh pr create --fill") == 2
+        assert bash(root, "lewitt:frontend-engineer", "git -C . push") == 2
+        assert bash(root, "lewitt:frontend-engineer", "git -c core.x=1 --no-pager push -f") == 2
+        assert bash(root, "lewitt:frontend-engineer", 'git commit -m "push the fix"') == 0
         assert bash(root, "lewitt:frontend-engineer", "git status") == 0
         assert bash(root, "general-purpose", "git push") == 0
 
+        assert not (root / "ran").exists()
         # A product folder gets the context, and paths gets the plugin folder.
         code, out = run("session-start.py", {}, root, plugin="/plugin")
         assert code == 0 and "lewitt:designer" in out, out

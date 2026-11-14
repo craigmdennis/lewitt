@@ -13,12 +13,14 @@ A role is Lewitt's when it is built in, as listed in BUILT_IN, or when the
 product's .lewitt/roles.md lists its agent type with a "Writes" column. Every other
 agent type, and the main session, passes. Exit code 2 blocks the call and sends
 stderr to the agent.
+
+The hook stops a role's mistakes. It is no sandbox: a shell command can still
+write a file, and the push check matches the command text only.
 """
 
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -32,7 +34,8 @@ BUILT_IN = {
 }
 FILE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 REMOTE_WRITES = [
-    r"\bgit\s+push\b",
+    # git, any options with their values, then push: git -C <dir> push.
+    r"\bgit(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+push\b",
     r"\bgh\s+(pr|issue)\s+(create|edit|merge|close|reopen|comment|review|ready|lock|unlock|delete)\b",
     r"\bgh\s+(release|repo|secret|variable|workflow|run)\s+(create|edit|delete|set|enable|disable|rerun|cancel|run)\b",
     r"\bgh\s+api\b.*(-X|--method)\s*(POST|PATCH|PUT|DELETE)\b",
@@ -67,14 +70,23 @@ def product_roles(root):
 
 
 def worktrees_dir(root):
-    """WORKTREES_DIR from .lewitt/paths, with $HOME and earlier variables expanded."""
+    """WORKTREES_DIR from .lewitt/paths, with $HOME and earlier variables expanded.
+
+    The file is read as KEY="value" lines and never run, because a repository can
+    hold a .lewitt/paths of its own.
+    """
     paths = root / ".lewitt" / "paths"
     if not paths.is_file():
         return None
-    value = subprocess.run(
-        ["sh", "-c", 'set -a; . "$1"; printf %s "$WORKTREES_DIR"', "sh", str(paths)],
-        cwd=root, capture_output=True, text=True,
-    ).stdout
+    known = {"HOME": str(Path.home())}
+    for line in paths.read_text().splitlines():
+        match = re.fullmatch(r'\s*([A-Z_][A-Z0-9_]*)=(?:"([^"]*)"|(\S*))\s*', line)
+        if match:
+            raw = match.group(2) if match.group(2) is not None else match.group(3)
+            known[match.group(1)] = re.sub(
+                r"\$\{?([A-Z_][A-Z0-9_]*)\}?", lambda ref: known.get(ref.group(1), ""), raw
+            )
+    value = known.get("WORKTREES_DIR", "")
     if not value:
         return None
     path = Path(value).expanduser()

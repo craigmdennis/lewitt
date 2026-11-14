@@ -25,11 +25,14 @@ set +a
 umask 077
 mkdir -p "$(dirname "$SESSION_FILE")"
 python3 - "$SESSION_FILE" "$1" "${2:-}" <<'PY'
+import ipaddress
 import json
+import socket
 import ssl
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 out, domain, check = sys.argv[1:]
@@ -52,8 +55,17 @@ print(f"Saved {len(cookies)} cookies to {out}")
 
 if check:
     req = urllib.request.Request(check, headers={"Cookie": header})
+    # A local dev server often has a self-signed certificate. Verification is
+    # skipped only when the host resolves to this Mac, so the cookies never go
+    # unverified to another machine.
+    host = urllib.parse.urlparse(check).hostname or ""
     try:
-        with urllib.request.urlopen(req, context=ssl._create_unverified_context()) as resp:
+        local = all(ipaddress.ip_address(info[4][0]).is_loopback for info in socket.getaddrinfo(host, None))
+    except (OSError, ValueError):
+        local = False
+    context = ssl._create_unverified_context() if local else ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, context=context) as resp:
             print(f"Session works: {check} returned {resp.status}")
     except urllib.error.HTTPError as err:
         sys.exit(f"Session check failed: {check} returned {err.code}")
