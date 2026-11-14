@@ -15,7 +15,7 @@
 ## 0. The folder
 
 1. When the folder is no git repository, ask whether to run `git init` in it. Lewitt runs in a plain folder too, without worktrees or pull requests.
-2. Run `sh "$LEWITT_ROOT/scripts/setup.sh"` from the folder. It creates `.lewitt/` with `agent-memory/`, `docs/` and `worktrees/`, hides `.lewitt/` and `.lewitt-run/` through the repository's `.git/info/exclude`, writes `.lewitt/paths` with `LEWITT_ROOT` and `APP_REPO`, and creates the denylist for this Mac, `$HOME/.config/lewitt/denylist`. Running it again changes nothing that is already set up.
+2. Run `sh "$LEWITT_ROOT/scripts/setup.sh"` from the folder. It creates `.lewitt/` with `agent-memory/`, `docs/` and `worktrees/`, hides `.lewitt/` and `.lewitt-run/` through the repository's `.git/info/exclude`, and writes `.lewitt/paths` with `LEWITT_ROOT` and `APP_REPO`. Running it again changes nothing that is already set up.
 
 ## 1. Roles
 
@@ -85,10 +85,9 @@ Researcher only. Write `.lewitt/research.md` from `templates/research.md`, then 
 5. **Issue trackers:** each tool where the team logs issues, ideas and decisions, and each tool that links issues to code, docs or support tickets. The researcher searches them for prior work at the start of each project.
 6. **Other sources,** such as a survey tool, support tickets or a research repository.
 
-## 7. Skills and terms
+## 7. Skills
 
-1. Copy `templates/skills.md` to `.lewitt/skills.md`. Keep the heading of each role in `.lewitt/roles.md`, and delete the others. For each company skill from steps 5 and 6, and each Lewitt skill an engineer needs for the product's stack, ask which agents load it, and list it under each one. When there are none, keep the file with its headings.
-2. Ask for the company's own terms: the product names, the component library, internal hosts, repository names and code names. Propose the ones you found in steps 1 to 6. Add each one to `$HOME/.config/lewitt/denylist`, one per line. The list keeps the terms out of Lewitt's public repository.
+Copy `templates/skills.md` to `.lewitt/skills.md`. Keep the heading of each role in `.lewitt/roles.md`, and delete the others. For each company skill from steps 5 and 6, and each Lewitt skill an engineer needs for the product's stack, ask which agents load it, and list it under each one. When there are none, keep the file with its headings.
 
 ## 8. Pattern rules
 

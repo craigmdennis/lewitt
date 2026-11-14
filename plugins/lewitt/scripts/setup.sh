@@ -8,8 +8,6 @@
 # 2. Hides .lewitt/ and .lewitt-run/ through the repository's .git/info/exclude.
 # 3. Writes .lewitt/paths from the template when it is missing, and sets
 #    LEWITT_ROOT and APP_REPO in it.
-# 4. Creates the denylist for this Mac, $HOME/.config/lewitt/denylist, when it is
-#    missing.
 #
 # Running it again changes nothing that is already set up.
 #
@@ -42,7 +40,4 @@ for name, value in (("LEWITT_ROOT", rel(plugin)), ("APP_REPO", rel(root))):
         text += line + "\n"
 open(path, "w").write(text)
 PY
-deny="$HOME/.config/lewitt/denylist"
-mkdir -p "$(dirname "$deny")"
-[ -e "$deny" ] || printf '# One term per line. A commit to Lewitt that adds a line containing a term fails.\n' > "$deny"
 echo "Lewitt is set up in $root"

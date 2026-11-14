@@ -1,6 +1,6 @@
 {
   "name": "lewitt",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A product design team in Claude Code: a designer session that scopes, prototypes and builds with copy, research and engineering sub-agents, in any folder set up with /lewitt:start",
   "author": {
     "name": "Craig Dennis"

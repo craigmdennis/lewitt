@@ -41,7 +41,7 @@ The repository's `.git/info/exclude` lists `.lewitt/`, `.lewitt-run/` and each f
 | A role or a skill only this product needs | `.claude/agents/` and `.claude/skills/`, through `/lewitt:new-role` |
 | One project's files | `<run>/` |
 
-When a project shows that the way of working needs to change, record the product-specific part in `.lewitt/`, and offer `/lewitt:contribute` for the general part. When the design lead names a new company term, such as a product, a component library or an internal host, add it to `$HOME/.config/lewitt/denylist`, one per line. The denylist keeps the term out of Lewitt's public repository.
+When a project shows that the way of working needs to change, record the product-specific part in `.lewitt/`, and offer `/lewitt:contribute` for the general part.
 
 ## Roles
 

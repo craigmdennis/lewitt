@@ -93,7 +93,6 @@ Lewitt works with the product's folder where it already is. This repository hold
 | One project's files: scope, states, decision log, research, screenshots and the standalone prototype | `.lewitt-run/` in the project's worktree |
 | Roles and skills made for the product | `.claude/agents/` and `.claude/skills/` in the product |
 | Code | A branch in the project's worktree, shipped as a pull request |
-| Company terms kept out of this repository | `$HOME/.config/lewitt/denylist` |
 
 The setup adds `.lewitt/`, `.lewitt-run/` and each role it makes to the repository's `.git/info/exclude`. Git ignores them, and the repository's tracked files and its `.gitignore` stay unchanged.
 

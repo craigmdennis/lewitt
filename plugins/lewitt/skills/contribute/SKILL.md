@@ -12,7 +12,7 @@ Lewitt's repository is public. A contribution states the way of working in gener
 2. **Find the source checkout.** Look for a folder named `lewitt` beside the product folder, then in the folder that holds the design lead's other repositories, and check that its `origin` is the Lewitt repository. When none is found, ask for its path, or offer to clone it.
 3. **Check the checkout.** Run `git -C <checkout> status --short` and `git -C <checkout> pull --ff-only`. Stop and report when it has uncommitted changes of its own.
 4. **Rewrite it in general terms.** Replace each product name, company term, internal host, path and example with a general one. Keep the reasoning and the steps.
-5. **Check the denylist.** Read `$HOME/.config/lewitt/denylist`, and search the rewritten text for each term, ignoring case. Reword each match. Show the design lead the rewritten text.
+5. **Check the denylist.** When `$HOME/.config/lewitt/denylist` exists, read it, and search the rewritten text for each term, ignoring case. Reword each match. Show the design lead the rewritten text.
 6. **Write it into the checkout:**
    - A role goes in `plugins/lewitt/agents/<role>.md`, with its memory at `.lewitt/agent-memory/<role>/MEMORY.md`. Add it to `BUILT_IN` in `plugins/lewitt/hooks/scope.py` with the folders it writes, to the roles table in `plugins/lewitt/skills/designer/SKILL.md` and `README.md`, to `plugins/lewitt/templates/roles.md`, and a heading for it to `plugins/lewitt/templates/skills.md`. When it is an engineer, add the files that suggest it to the "Roles" step of `plugins/lewitt/skills/start/setup.md`.
    - A skill goes in `plugins/lewitt/skills/<skill>/SKILL.md`. Rename `skills:` entries that name it to `lewitt:<skill>`.
