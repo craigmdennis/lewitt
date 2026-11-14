@@ -230,6 +230,6 @@ Run folders, research output, agent memory and `notes/` hold the company's data.
 ## Conventions
 
 - No emoji.
-- Durable documents about Lewitt go in `docs/`. Each project's files go in `<run>/`.
+- Documents about Lewitt itself, such as specs and plans for a change to Lewitt, go in `docs/` in this checkout, which git ignores. Documents about a product go in `.lewitt/docs/` in the app repository's main checkout. Each project's files go in `<run>/`.
 - Use built-in events and notifications. Never poll or set a timer to wait for work.
 - Ask before creating a git worktree.

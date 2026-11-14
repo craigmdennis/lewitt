@@ -8,3 +8,5 @@ node_modules/
 /worktrees
 /notes
 /.claude/agent-memory
+# Documents about Lewitt itself, such as specs and plans for a change to Lewitt.
+/docs
