@@ -38,6 +38,10 @@ const FLAG_TOOL = 'mcp__now-view__flag_for_design_lead'
 const RESOLVE_TOOL = 'mcp__now-view__resolve_flag'
 const PROJECT_TOOL = 'mcp__now-view__set_project'
 
+// Whether the chat's folder holds .lewitt/, Lewitt's setup for a product. The pane
+// opens on its own only there, and elsewhere only at /now or a flagged question.
+let lewittFolder = false
+
 // The ids already looked up in the session's agent list, so a run the list
 // does not hold, such as a workflow's, is looked up once.
 const looked = new Set<string>()
@@ -456,7 +460,7 @@ async function saveProject($: EngineInterface, value: Project): Promise<void> {
 // chat. An open the person did not ask for is placed only on a wide terminal;
 // one made while their prompt is handled is placed at any width.
 async function openUnlessClosed($: EngineInterface): Promise<void> {
-  if (await read($, dismissed)) return
+  if (!lewittFolder || (await read($, dismissed))) return
   const panes = await $.ui.panes().catch(() => [])
   if (panes.some(one => one.id === PANE && one.isPlaced)) return
   await $.ui.open({ id: PANE, title: TITLE }).catch(() => undefined)
@@ -532,6 +536,8 @@ export const register: Register = on => {
       },
       isDeferred: false,
     }).catch(() => undefined)
+    const root = await $.session.root().catch(() => undefined)
+    lewittFolder = root ? await $.fs.exists(`${root}/.lewitt`).catch(() => false) : false
     await loadHistory($).catch(() => undefined)
     await catchUp($)
     await save($)
@@ -605,7 +611,7 @@ export const register: Register = on => {
       ].slice(-HISTORY),
     )
     await save($)
-    void $.ui.open({ id: PANE, title: TITLE })
+    if (lewittFolder) void $.ui.open({ id: PANE, title: TITLE })
 
     return started
   })

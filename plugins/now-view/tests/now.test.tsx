@@ -474,9 +474,11 @@ test('the project summary shows at the top, and a new chat in the folder reads i
   expect(Array.isArray(kept['project:/project'])).toBe(true)
 })
 
-test('the pane opens when the session starts and at the first prompt, and not again once it shows', async ($, on) => {
+test('in a Lewitt folder, the pane opens when the session starts and at the first prompt, and not again once it shows', async ($, on) => {
   const opened: string[] = []
   let placed = false
+  on('session.root', () => ({ value: '/product' }))
+  on('fs.exists', (_, e) => ({ value: e.path === '/product/.lewitt' }))
   on('command.register', () => ({ value: { command: 'now' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.list', () => ({ value: [] }))
@@ -569,4 +571,30 @@ test('/now clear removes the finished tasks of the project, and they stay remove
   expect(await ui.find({ type: 'Text', text: /^FINISHED \(/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /Credit research/ })).toBeUndefined()
   await ui.unmount()
+})
+
+test('outside a Lewitt folder, the pane opens only at /now', async ($, on) => {
+  const opened: string[] = []
+  on('command.register', () => ({ value: { command: 'now' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.root', () => ({ value: '/elsewhere' }))
+  on('fs.exists', () => ({ value: false }))
+  on('agent.list', () => ({ value: [] }))
+  on('session.messages', () => ({ value: [] }))
+  on('agent.spawn', () => ({ model: 'sonnet', agentId: 'e1' }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 10, 4, 15, 0) }))
+  on('ui.panes', () => ({ value: [] }))
+  on('ui.open', (_, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } }
+  })
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.prompt.submit({ text: 'Fix the build.' })
+  await $.agent.spawn({ prompt: 'Find the failing test.', description: 'Failing test', subagentType: 'Explore' })
+  expect(opened.length).toBe(0)
+
+  await $.command.run({ command: 'now' })
+  expect(opened.length).toBe(1)
 })
