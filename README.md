@@ -25,6 +25,7 @@ Lewitt replaces an earlier setup that ran design projects through an orchestrati
 | Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
 | Researcher | Sub-agent `researcher` | Sonnet | Finds the evidence for a design decision in the web, Mobbin, Amplitude, a data warehouse, Notion and Linear, and rates its confidence in each finding | Its memory |
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| macOS engineer | Sub-agent `macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned.

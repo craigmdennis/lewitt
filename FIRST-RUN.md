@@ -22,7 +22,7 @@ If `notes` is already a link, skip this step.
 
 Copy `templates/notes/roles.md` to `notes/roles.md`. List each agent in `.claude/agents/`, then propose the roles that fit the product, with the file each proposal comes from:
 
-- **An engineer.** A `package.json` with a web framework suggests the front-end engineer.
+- **An engineer.** A `package.json` with a web framework suggests the front-end engineer. An `.xcodeproj`, an `.xcworkspace` or a `Package.swift` with a macOS app target suggests the macOS engineer.
 - **The copywriter**, when the product has a copy style guide, or UI strings in the repository.
 - **The researcher**, when the company has issue trackers, product analytics or a data warehouse to read.
 

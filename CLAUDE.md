@@ -47,6 +47,7 @@ The pre-commit check in `.githooks/` blocks a commit that adds a term from `note
 | Copywriter | Sub-agent `copywriter` | Sonnet | Writes and reviews each UI string, with the rule or existing string it follows | Its memory |
 | Researcher | Sub-agent `researcher` | Sonnet | Checks the issue trackers for prior work at the start of each project, and finds the evidence for a design decision in the web, Mobbin, product analytics, the data warehouse, Notion and Linear | Its memory |
 | Front-end engineer | Sub-agent `frontend-engineer` | Sonnet | Writes the codebase report and the state inventory, makes each state reachable by URL, answers feasibility questions, builds the final version and the design system work, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
+| macOS engineer | Sub-agent `macos-engineer` | Sonnet | For a native Mac app: writes the codebase report and the state inventory, makes each state reachable by a launch argument, answers feasibility questions, builds the final version in Swift and SwiftUI, and prepares the pull requests | The project's worktree, its files in the run folder, its memory |
 | Design partner | Sub-agent `fork` | Opus | Builds a second option or a separate exploration with the designer's context | What the designer's brief names |
 
 A full-stack engineer for backend changes is planned. Until it exists, the engineer reports backend limits in the codebase report and builds on stubs.
@@ -90,7 +91,7 @@ Run these checks first, and report each result in one line. A failed check does 
 
 1. **The Now view.** Check that it is installed, as "The Now view" below describes.
 2. **Sources.** Run `claude mcp list`. Name each source in the sub-agents' definitions that is not connected, and what the researcher or the engineer cannot read without it.
-3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL. When that fails, or `notes/app.md` has no such section, brief the engineer with the "Running the app" task before the codebase report.
+3. **Running the app.** When the project needs the app running, for screenshots, page snapshots or a prototype in code, start it as "Running the app" in `notes/app.md` says, and open its check URL or its main window. When that fails, or `notes/app.md` has no such section, brief the engineer with the "Running the app" task before the codebase report.
 
 Then ask these questions, one per message:
 
@@ -128,9 +129,9 @@ The prototype is the feedback target. It is not production code.
 - **Standalone**, for a new feature: each version is `<run>/prototype/v<n>/`, with its source in `src/`. After each change to `src/`, build `index.html` with `python3 scripts/inline-prototype.py <run>/prototype/v<n>`, and link only the built file.
 - **In code**, for a change to an existing page: each version is a commit on the project's branch, named in the commit message.
 
-Each state opens from the `state` URL parameter, with the state ID from `states.md`. The prototype offers only the combinations of states that `states.md` allows. With no parameter, the page shows the main state.
+Each state opens from the `state` URL parameter, with the state ID from `states.md`. A native app reads the ID from a `-state` launch argument instead. The prototype offers only the combinations of states that `states.md` allows. With no state, the prototype shows the main state.
 
-Build from the design system's components, and write no CSS that restyles one. A state the version does not build yet is a placeholder: the component that will hold it, a dashed border, the label "Placeholder", the state ID and one sentence on what will appear there.
+Build from the design system's components, and write no CSS that restyles one. A product with no design system builds from the platform controls that `notes/design-system.md` names. A state the version does not build yet is a placeholder: the component that will hold it, a dashed border, the label "Placeholder", the state ID and one sentence on what will appear there.
 
 Before sending a version, run the visual check in `notes/design-system.md` on each new or changed state.
 

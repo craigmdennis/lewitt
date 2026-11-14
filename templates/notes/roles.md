@@ -9,3 +9,4 @@ The roles this product uses. The first run saves this list as `notes/roles.md` a
 | Copywriter | `copywriter` |
 | Researcher | `researcher` |
 | Front-end engineer | `frontend-engineer` |
+| macOS engineer | `macos-engineer` |
